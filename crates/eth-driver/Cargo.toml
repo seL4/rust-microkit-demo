@@ -1,0 +1,14 @@
+[package]
+name = "eth-driver"
+version = "0.1.0"
+authors = ["Ben Hamlin <hamlinb@galois.com>"]
+edition = "2021"
+license = "BSD-2-Clause"
+
+[dependencies]
+eth-driver-interface = { path = "./interface" }
+
+[dependencies.sel4cp]
+git = "https://gitlab.com/coliasgroup/rust-seL4"
+rev = "8c908d4cf8ef39ee3445995851655c42851f20d1"
+default-features = false

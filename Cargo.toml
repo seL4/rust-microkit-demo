@@ -6,4 +6,5 @@ members = [
     "crates/artist",
     "crates/assistant",
     "crates/pl011-driver",
+    "crates/eth-driver",
 ]

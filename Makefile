@@ -45,7 +45,6 @@ common_env := \
 	SEL4_INCLUDE_DIRS=$(abspath $(sel4cp_sdk_config_dir)/include)
 
 common_options := \
-	--locked \
 	-Z unstable-options \
 	-Z bindeps \
 	-Z build-std=core,alloc,compiler_builtins \
@@ -94,6 +93,19 @@ $(pl011_driver_intermediate):
 			$(common_options) \
 			-p $(pl011_driver_crate)
 
+eth_driver_crate := eth-driver
+eth_driver := $(build_dir)/$(eth_driver_crate).elf
+eth_driver_intermediate := $(build_dir)/eth_driver.intermediate
+
+$(eth_driver): $(eth_driver_intermediate)
+
+.INTERMDIATE: $(eth_driver_intermediate)
+$(eth_driver_intermediate):
+	$(common_env) \
+		cargo build \
+			$(common_options) \
+			-p $(eth_driver_crate)
+
 ### Loader
 
 loader := $(build_dir)/loader.img
@@ -103,7 +115,7 @@ $(loader): $(loader_intermediate)
 
 # TODO get pyoxidizer working
 .PHONY: $(loader_intermediate)
-$(loader_intermediate): $(assistant) $(artist) $(pl011_driver)
+$(loader_intermediate): $(assistant) $(artist) $(pl011_driver) $(eth_driver)
 	PYTHONPATH=$(sel4cp_source_dir)/tool:$$PYTHONPATH \
 	SEL4CP_SDK=$(sel4cp_sdk_dir) \
 		python3 -m sel4coreplat \
