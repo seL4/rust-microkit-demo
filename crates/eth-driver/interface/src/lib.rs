@@ -6,6 +6,8 @@ use smoltcp::{phy, time::Instant};
 use core::default::default;
 use heapless;
 
+// Assuming a fixed (standard) MTU for now.
+// TODO Revisit once we know more about hardware.
 const MTU: usize = 1500;
 
 /// Number of buffers available for transmitting frames. Set to an arbitrary value for now.
@@ -168,11 +170,13 @@ impl phy::Device for EthDevice {
     }
 
     fn capabilities(&self) -> phy::DeviceCapabilities {
+        // Assuming no checksums and a fixed (standard) MTU for now.
+        // TODO Revisit these capabilities once we know what hardware we're using.
         phy::DeviceCapabilities {
             medium: phy::Medium::Ethernet,
             max_transmission_unit: MTU,
             max_burst_size: None,
-            checksum: phy::ChecksumCapabilities { // XXX Which of these do we want here?
+            checksum: phy::ChecksumCapabilities {
                 ipv4: phy::Checksum::None,
                 udp: phy::Checksum::None,
                 tcp: phy::Checksum::None,
