@@ -8,7 +8,9 @@ use heapless;
 
 const MTU: usize = 1500;
 
+/// Number of buffers available for transmitting frames. Set to an arbitrary value for now.
 const TX_BUF_SIZE: usize = 8;
+/// Number of buffers available for receiving frames. Set to an arbitrary value for now.
 const RX_BUF_SIZE: usize = 8;
 
 #[derive(Clone, Copy, PartialEq, Eq, Default, AsBytes, FromBytes)]
