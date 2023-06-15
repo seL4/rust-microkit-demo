@@ -7,10 +7,10 @@
 extern crate alloc;
 
 use sel4cp::memory_region::{
-    declare_memory_region, MemoryRegion, ReadOnly, ReadWrite, VolatileSliceExt,
+    memory_region_symbol, MemoryRegion, MemoryRegionData, ReadOnly, ReadWrite,
 };
 use sel4cp::message::{MessageInfo, NoMessageValue, StatusMessageLabel};
-use sel4cp::{main, Channel, Handler};
+use sel4cp::{protection_domain, Channel, Handler};
 
 use banscii_artist_interface_types::*;
 
@@ -23,18 +23,23 @@ const ASSISTANT: Channel = Channel::new(0);
 
 const REGION_SIZE: usize = 0x4_000;
 
-#[main(heap_size = 0x10000)]
-fn main() -> ThisHandler {
+#[protection_domain(heap_size = 0x10000)]
+fn init() -> ThisHandler {
     let region_in = unsafe {
-        declare_memory_region! {
-            <[u8], ReadOnly>(region_in_start, REGION_SIZE)
-        }
-    };
+        MemoryRegion::<[u8], ReadOnly>::new(
+            memory_region_symbol!(region_in_start: *const u8),
+            REGION_SIZE,
+        )
+    }
+    .data();
+
     let region_out = unsafe {
-        declare_memory_region! {
-            <[u8], ReadWrite>(region_out_start, REGION_SIZE)
-        }
-    };
+        MemoryRegion::<[u8], ReadWrite>::new(
+            memory_region_symbol!(region_out_start: *mut u8),
+            REGION_SIZE,
+        )
+    }
+    .data();
 
     ThisHandler {
         region_in,
@@ -43,8 +48,8 @@ fn main() -> ThisHandler {
 }
 
 struct ThisHandler {
-    region_in: MemoryRegion<[u8], ReadOnly>,
-    region_out: MemoryRegion<[u8], ReadWrite>,
+    region_in: MemoryRegionData<[u8], ReadOnly>,
+    region_out: MemoryRegionData<[u8], ReadWrite>,
 }
 
 impl Handler for ThisHandler {
