@@ -2,8 +2,11 @@
 #![no_main]
 #![feature(never_type)]
 
-#[main]
-fn main() -> ThisHandler {
+use sel4cp::{protection_domain, Channel, Handler};
+use eth_driver_interface as interface;
+
+#[protection_domain]
+fn init() -> ThisHandler {
     todo!()
 }
 

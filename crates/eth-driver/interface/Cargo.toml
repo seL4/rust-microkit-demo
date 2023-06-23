@@ -1,15 +1,15 @@
 [package]
-name = "eth-driver-interface"
+name = "banscii-eth-driver-interface"
 version = "0.1.0"
 authors = ["Ben Hamlin <hamlinb@galois.com>"]
 edition = "2021"
 license = "BSD-2-Clause"
 
 [dependencies]
-num_enum = { version = "*", default-features = false }
-zerocopy = "*"
+num_enum = { version = "0.5.9", default-features = false }
+zerocopy = "0.6.1"
 heapless = "*"
-smoltcp = { version = "*", default-features = false, features = ["proto-ipv4"] }
+smoltcp = { version = "*", default-features = false, features = ["proto-ipv4","medium-ethernet","socket-raw"] }
 
 [dependencies.sel4cp]
 git = "https://gitlab.com/coliasgroup/rust-seL4"

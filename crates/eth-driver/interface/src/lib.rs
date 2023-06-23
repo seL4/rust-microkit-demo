@@ -1,10 +1,11 @@
 #![no_std]
 
 use zerocopy::{AsBytes, FromBytes};
-use sel4cp::{message::NoMessageValue, memory_region::{MemoryRegion, ReadWrite}};
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+use sel4cp::{Channel, message::MessageInfo, memory_region::{MemoryRegion, ReadWrite}};
 use smoltcp::{phy, time::Instant};
-use core::default::default;
-use heapless;
+
+use crate::ring_buffer::*;
 
 // Assuming a fixed (standard) MTU for now.
 // TODO Revisit once we know more about hardware.
@@ -15,174 +16,167 @@ const TX_BUF_SIZE: usize = 8;
 /// Number of buffers available for receiving frames. Set to an arbitrary value for now.
 const RX_BUF_SIZE: usize = 8;
 
-#[derive(Clone, Copy, PartialEq, Eq, Default, AsBytes, FromBytes)]
-#[repr(C)]
-pub struct PduSlot {
-    pub(crate) index: usize,
-    pub(crate) length: usize,
+pub type Buf = [u8; MTU];
+pub type Bufs<const SIZE: usize> = [Buf; SIZE];
+
+pub struct EthDevice {
+    tx_ring: RingBuffer<usize, TX_BUF_SIZE>,
+    tx_bufs: MemoryRegion<Bufs<TX_BUF_SIZE>, ReadWrite>,
+    tx_chan: Channel,
+    rx_ring: RingBuffer<RxReadyMsg, RX_BUF_SIZE>,
+    rx_bufs: MemoryRegion<Bufs<RX_BUF_SIZE>, ReadWrite>,
+    rx_chan: Channel,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Default, AsBytes, FromBytes)]
-#[repr(C)]
-pub struct RingBuffer<const SIZE: usize> {
-    take_index: usize,
-    put_index: usize,
-    pdu_slots: [PduSlot; SIZE],
-}
-
-impl<const SIZE: usize> RingBuffer<SIZE> {
-    pub fn flush(&mut self) {
-        self.read_index = 0;
-        self.write_index = 0;
-        self.entries = [0u8; SIZE];
-    }
-
-    pub fn len(&self) -> usize {
-        ((SIZE + self.write_index) - self.read_index) % SIZE
-    }
-
-    pub fn is_full(&self) -> bool {
-        self.len() == SIZE
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    pub fn take_pdu(&mut self) -> Option<PduSlot> {
-        if self.is_empty() {
-            None
-        } else {
-            let pdu = self.entries[self.take_index];
-            self.take_index += 1;
-
-            Some(pdu)
-        }
-    }
-
-    pub fn put_pdu(&mut self, pdu: PduSlot, length: usize) -> Option<()> {
-        if self.is_full() {
-            None
-        } else {
-            pdu.length = length;
-            self.entries[self.put_index] = pdu;
-            self.put_index += 1;
-
-            Some(())
+impl<'a> EthDevice {
+    pub fn new(
+        tx_bufs: MemoryRegion<Bufs<TX_BUF_SIZE>, ReadWrite>, // XXX Pass in a ptr?
+        tx_chan: Channel,
+        rx_bufs: MemoryRegion<Bufs<RX_BUF_SIZE>, ReadWrite>, // XXX Pass in a ptr?
+        rx_chan: Channel,
+    ) -> Self {
+        Self {
+            tx_ring: RingBuffer::<usize, TX_BUF_SIZE>::from_iter(0..TX_BUF_SIZE),
+            tx_bufs,
+            tx_chan,
+            rx_ring: RingBuffer::<RxReadyMsg, RX_BUF_SIZE>::empty(),
+            rx_bufs,
+            rx_chan,
         }
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Default, AsBytes, FromBytes)]
-#[repr(C)]
-pub struct PduBuffer<const SIZE: usize> {
-    used: RingBuffer<SIZE>,
-    free: RingBuffer<SIZE>, // XXX Maybe remove length field here?
-    bufs: [[u8; MTU]; SIZE],
+pub struct TxToken {
+    index: usize,
+    buf: MemoryRegion<&'static mut Buf, ReadWrite>,
+    chan: Channel
 }
 
-// XXX Synchronization needed
-impl<const SIZE: usize> PduBuffer<SIZE> {
-    pub fn init(&mut self) {
-        self.used.flush();
-        self.free.flush();
-        for i in 0..SIZE {
-            self.free.put_pdu(i, 0);
-        }
-    }
+impl phy::TxToken for TxToken {
+    fn consume<R, F: FnOnce(&mut [u8]) -> R>(self, length: usize, f: F) -> R {
+        let res = f(&mut self.buf.extract_inner()[..]);
 
-    pub fn take_pdu(&mut self) -> Option<usize> {
-        self.free.take_pdu()
-    }
-
-    pub fn put_pdu(&mut self, pdu: PduSlot, length: usize) -> Option<()> {
-        self.free.put_pdu(pdu, length)
-    }
-
-    pub fn read_pdu(&mut self) -> Option<heapless::Vec<u8, MTU>> {
-        let pdu = self.used.take_pdu()?;
-        let mut res = heapless::Vec::<u8, MTU>::new();
-        for i in 0..pdu.length {
-            res.push(self.bufs[pdu.index][i]);
-        }
-
-        // XXX This is safe, as long as no one is cloning PDUs...
-        self.free.put_pdu(pdu, 0)?;
+        self.chan.pp_call(MessageInfo::send(
+            ClientTag::TxReady,
+            TxReadyMsg {
+                index: self.index,
+                length,
+            },
+        ));
 
         res
     }
-
-    pub fn write_pdu(&mut self, pdu: PduSlot, bytes: &[u8]) -> Option<()> {
-        let pdu = self.free.take()?;
-        for i in 0..bytes.len() {
-            self.bufs[pdu.index][i] = bytes[i];
-        }
-
-        self.used.put_pdu(pdu, bytes.len())?;
-
-        Some(())
-    }
 }
 
-pub struct EthDevice {
-    tx_ring: MemoryRegion<PduBuffer<TX_BUF_SIZE>, ReadWrite>,
-    rx_ring: MemoryRegion<PduBuffer<RX_BUF_SIZE>, ReadWrite>,
+pub struct RxToken {
+    index: usize,
+    length: usize,
+    buf: MemoryRegion<&'static mut Buf, ReadWrite>,
+    chan: Channel
 }
-
-impl EthDevice {
-    pub fn new(
-        tx_ring: MemoryRegion<PduBuffer<TX_BUF_SIZE>, ReadWrite>,
-        rx_ring: MemoryRegion<PduBuffer<RX_BUF_SIZE>, ReadWrite>,
-    ) -> Self {
-        Self {
-            tx_ring,
-            rx_ring,
-        }
-    }
-}
-
-struct TxToken(pub(crate) PduSlot);
-
-impl phy::TxToken for TxToken {
-    fn consume<R, F>(self, len: usize, f: impl FnOnce(&mut [u8]) -> R) -> R {
-        todo!()
-    }
-}
-
-struct RxToken(pub(crate) PduSlot);
 
 impl phy::RxToken for RxToken {
-    fn consume<R, F>(self, f: impl FnOnce(&mut [u8]) -> R) -> R {
-        todo!()
+    fn consume<R, F: FnOnce(&mut [u8]) -> R>(self, f: F) -> R {
+        let res = f(&mut self.buf.extract_inner()[0..self.length]);
+
+        self.chan.pp_call(MessageInfo::send(
+            ClientTag::RxDone,
+            RxDoneMsg {
+                index: self.index,
+            },
+        ));
+
+        res
     }
 }
 
 impl phy::Device for EthDevice {
-    type TxToken = TxToken;
-    type RxToken = RxToken;
+    type TxToken<'a> = TxToken;
+    type RxToken<'a> = RxToken;
 
     fn receive(&mut self, timestamp: Instant) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
-        todo!()
+        let rx_ready = self.rx_ring.take()?;
+        let tx_index = self.tx_ring.take()?; // XXX Handle the case where rx is non-empty, buf tx
+                                             // is full
+        Some((
+            Self::RxToken {
+                index: rx_ready.index,
+                length: rx_ready.length,
+                buf: self.rx_bufs.index_mut(rx_ready.index),
+                chan: self.rx_chan,
+            },
+            Self::TxToken {
+                index: tx_index,
+                buf: self.tx_bufs.index_mut(tx_index),
+                chan: self.tx_chan,
+            },
+        ))
     }
 
     fn transmit(&mut self, timestamp: Instant) -> Option<Self::TxToken<'_>> {
-        todo!()
+        let index = self.tx_ring.take()?;
+
+        Some(Self::TxToken {
+            index,
+            buf: self.tx_bufs.index_mut(index),
+            chan: self.tx_chan,
+        })
     }
 
     fn capabilities(&self) -> phy::DeviceCapabilities {
         // Assuming no checksums and a fixed (standard) MTU for now.
         // TODO Revisit these capabilities once we know what hardware we're using.
-        phy::DeviceCapabilities {
-            medium: phy::Medium::Ethernet,
-            max_transmission_unit: MTU,
-            max_burst_size: None,
-            checksum: phy::ChecksumCapabilities {
-                ipv4: phy::Checksum::None,
-                udp: phy::Checksum::None,
-                tcp: phy::Checksum::None,
-                icmpv4: phy::Checksum::None,
-                icmpv6: phy::Checksum::None,
-            }
-        }
+        let mut caps = phy::DeviceCapabilities::default();
+        caps.medium = phy::Medium::Ethernet;
+        caps.max_transmission_unit = MTU;
+        caps.max_burst_size = None;
+        caps.checksum.ipv4 = phy::Checksum::None;
+        caps.checksum.udp = phy::Checksum::None;
+        caps.checksum.tcp = phy::Checksum::None;
+        caps.checksum.icmpv4 = phy::Checksum::None;
+
+        caps
     }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
+#[cfg_attr(target_pointer_width = "32", repr(u32))]
+#[cfg_attr(target_pointer_width = "64", repr(u64))]
+pub enum ClientTag {
+    TxReady,
+    RxDone,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Default, AsBytes, FromBytes)]
+#[repr(C)]
+pub struct TxReadyMsg {
+    pub index: usize,
+    pub length: usize,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Default, AsBytes, FromBytes)]
+#[repr(C)]
+pub struct RxDoneMsg {
+    pub index: usize,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
+#[cfg_attr(target_pointer_width = "32", repr(u32))]
+#[cfg_attr(target_pointer_width = "64", repr(u64))]
+pub enum ServerTag {
+    RxReady,
+    TxDone,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Default, AsBytes, FromBytes)]
+#[repr(C)]
+pub struct RxReadyMsg {
+    pub index: usize,
+    pub length: usize,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Default, AsBytes, FromBytes)]
+#[repr(C)]
+pub struct TxDoneMsg {
+    pub index: usize,
 }
