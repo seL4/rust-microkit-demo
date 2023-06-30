@@ -72,24 +72,12 @@ endef
 crates := \
 	banscii-artist \
 	banscii-assistant \
-	banscii-pl011-driver
+	banscii-pl011-driver \
+	banscii-eth-driver
 
 built_crates := $(foreach crate,$(crates),$(call target_for_crate,$(crate)))
 
 $(eval $(foreach crate,$(crates),$(call build_crate,$(crate))))
-
-eth_driver_crate := eth-driver
-eth_driver := $(build_dir)/$(eth_driver_crate).elf
-eth_driver_intermediate := $(build_dir)/eth_driver.intermediate
-
-$(eth_driver): $(eth_driver_intermediate)
-
-.INTERMDIATE: $(eth_driver_intermediate)
-$(eth_driver_intermediate):
-	$(common_env) \
-		cargo build \
-			$(common_options) \
-			-p $(eth_driver_crate)
 
 ### Loader
 
