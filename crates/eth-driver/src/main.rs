@@ -3,7 +3,7 @@
 #![feature(never_type)]
 
 use sel4cp::{protection_domain, Channel, Handler};
-use eth_driver_interface as interface;
+use banscii_eth_driver_interface as interface;
 
 #[protection_domain]
 fn init() -> ThisHandler {
