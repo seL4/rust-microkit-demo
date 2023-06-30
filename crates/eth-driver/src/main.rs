@@ -3,6 +3,7 @@
 #![feature(never_type)]
 
 use sel4cp::{protection_domain, Channel, Handler};
+#[allow(unused_imports)]
 use banscii_eth_driver_interface as interface;
 
 #[protection_domain]
@@ -15,7 +16,7 @@ struct ThisHandler();
 impl Handler for ThisHandler {
     type Error = !;
 
-    fn notified(&mut self, channel: Channel) -> Result<(), Self::Error> {
+    fn notified(&mut self, _channel: Channel) -> Result<(), Self::Error> {
         todo!()
     }
 }
