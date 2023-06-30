@@ -2,10 +2,11 @@
 
 use zerocopy::{AsBytes, FromBytes};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use sel4cp::{Channel, message::MessageInfo, memory_region::{MemoryRegion, ReadWrite}};
+use sel4cp::{Channel, message::MessageInfo, memory_region::{MemoryRegion, ReadWrite, ExternallyShared}};
 use smoltcp::{phy, time::Instant};
 
-use crate::ring_buffer::*;
+mod ringbuffer;
+use crate::ringbuffer::*;
 
 // Assuming a fixed (standard) MTU for now.
 // TODO Revisit once we know more about hardware.
@@ -17,22 +18,22 @@ const TX_BUF_SIZE: usize = 8;
 const RX_BUF_SIZE: usize = 8;
 
 pub type Buf = [u8; MTU];
-pub type Bufs<const SIZE: usize> = [Buf; SIZE];
+pub type Bufs = [Buf];
 
 pub struct EthDevice {
     tx_ring: RingBuffer<usize, TX_BUF_SIZE>,
-    tx_bufs: MemoryRegion<Bufs<TX_BUF_SIZE>, ReadWrite>,
+    tx_bufs: MemoryRegion<Bufs, ReadWrite>,
     tx_chan: Channel,
     rx_ring: RingBuffer<RxReadyMsg, RX_BUF_SIZE>,
-    rx_bufs: MemoryRegion<Bufs<RX_BUF_SIZE>, ReadWrite>,
+    rx_bufs: MemoryRegion<Bufs, ReadWrite>,
     rx_chan: Channel,
 }
 
-impl<'a> EthDevice {
+impl EthDevice {
     pub fn new(
-        tx_bufs: MemoryRegion<Bufs<TX_BUF_SIZE>, ReadWrite>, // XXX Pass in a ptr?
+        tx_bufs: MemoryRegion<Bufs, ReadWrite>, // XXX Pass in a ptr?
         tx_chan: Channel,
-        rx_bufs: MemoryRegion<Bufs<RX_BUF_SIZE>, ReadWrite>, // XXX Pass in a ptr?
+        rx_bufs: MemoryRegion<Bufs, ReadWrite>, // XXX Pass in a ptr?
         rx_chan: Channel,
     ) -> Self {
         Self {
@@ -46,15 +47,19 @@ impl<'a> EthDevice {
     }
 }
 
-pub struct TxToken {
+pub struct TxToken<'a> {
     index: usize,
-    buf: MemoryRegion<&'static mut Buf, ReadWrite>,
+    buf: ExternallyShared<&'a mut Buf, ReadWrite>,
     chan: Channel
 }
 
-impl phy::TxToken for TxToken {
-    fn consume<R, F: FnOnce(&mut [u8]) -> R>(self, length: usize, f: F) -> R {
-        let res = f(&mut self.buf.extract_inner()[..]);
+impl<'a> phy::TxToken for TxToken<'a> {
+    fn consume<R, F: FnOnce(&mut [u8]) -> R>(mut self, length: usize, f: F) -> R {
+        debug_assert!(length <= MTU);
+
+        let mut buf = [0; MTU];
+        let res = f(&mut buf);
+        self.buf.write(buf);
 
         self.chan.pp_call(MessageInfo::send(
             ClientTag::TxReady,
@@ -68,16 +73,17 @@ impl phy::TxToken for TxToken {
     }
 }
 
-pub struct RxToken {
+pub struct RxToken<'a> {
     index: usize,
     length: usize,
-    buf: MemoryRegion<&'static mut Buf, ReadWrite>,
+    buf: ExternallyShared<&'a mut Buf, ReadWrite>,
     chan: Channel
 }
 
-impl phy::RxToken for RxToken {
+impl<'a> phy::RxToken for RxToken<'a> {
     fn consume<R, F: FnOnce(&mut [u8]) -> R>(self, f: F) -> R {
-        let res = f(&mut self.buf.extract_inner()[0..self.length]);
+        let mut buf = self.buf.read();
+        let res = f(&mut buf[0..self.length]);
 
         self.chan.pp_call(MessageInfo::send(
             ClientTag::RxDone,
@@ -91,34 +97,42 @@ impl phy::RxToken for RxToken {
 }
 
 impl phy::Device for EthDevice {
-    type TxToken<'a> = TxToken;
-    type RxToken<'a> = RxToken;
+    type TxToken<'a> = TxToken<'a>;
+    type RxToken<'a> = RxToken<'a>;
 
-    fn receive(&mut self, timestamp: Instant) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
+    fn receive(&mut self, _timestamp: Instant) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
         let rx_ready = self.rx_ring.take()?;
-        let tx_index = self.tx_ring.take()?; // XXX Handle the case where rx is non-empty, buf tx
+        let tx_index = self.tx_ring.take()?; // XXX Handle the case where rx is non-empty, but tx
                                              // is full
+
+        // TODO Can we do this safely?
+        let rx_buf = ExternallyShared::new(unsafe { &mut *self.rx_bufs.start().offset(rx_ready.index as isize) });
+        let tx_buf = ExternallyShared::new(unsafe { &mut *self.tx_bufs.start().offset(tx_index as isize) });
+
         Some((
             Self::RxToken {
                 index: rx_ready.index,
                 length: rx_ready.length,
-                buf: self.rx_bufs.index_mut(rx_ready.index),
+                buf: rx_buf,
                 chan: self.rx_chan,
             },
             Self::TxToken {
                 index: tx_index,
-                buf: self.tx_bufs.index_mut(tx_index),
+                buf: tx_buf,
                 chan: self.tx_chan,
             },
         ))
     }
 
-    fn transmit(&mut self, timestamp: Instant) -> Option<Self::TxToken<'_>> {
+    fn transmit(&mut self, _timestamp: Instant) -> Option<Self::TxToken<'_>> {
         let index = self.tx_ring.take()?;
+
+        // TODO Can we do this safely?
+        let tx_buf = ExternallyShared::new(unsafe { &mut *self.tx_bufs.start().offset(index as isize) });
 
         Some(Self::TxToken {
             index,
-            buf: self.tx_bufs.index_mut(index),
+            buf: tx_buf,
             chan: self.tx_chan,
         })
     }

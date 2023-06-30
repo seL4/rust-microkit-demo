@@ -1,4 +1,3 @@
-
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct RingBuffer<T, const SIZE: usize> {
     take_index: usize,
@@ -28,7 +27,7 @@ impl<T: Default + Copy, const SIZE: usize> core::iter::FromIterator<T> for RingB
     }
 }
 
-impl<T, const SIZE: usize> RingBuffer<T, SIZE> {
+impl<T: Copy, const SIZE: usize> RingBuffer<T, SIZE> {
     pub fn len(&self) -> usize {
         ((SIZE + self.put_index) - self.take_index) % SIZE
     }
@@ -45,7 +44,7 @@ impl<T, const SIZE: usize> RingBuffer<T, SIZE> {
         if self.is_empty() {
             None
         } else {
-            let entry = self.entries[self.take_index];
+            let entry = self.entries[self.take_index].clone();
             self.take_index = (self.take_index + 1) % SIZE;
 
             Some(entry)
