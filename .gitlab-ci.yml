@@ -1,0 +1,39 @@
+stages:
+  - build
+  - test
+
+image: docker:latest
+
+variables:
+  DOCKER_TLS_CERTDIR: "/certs"
+
+services:
+  - docker:dind
+
+before_script:
+  - sleep 15
+  - docker info
+  - docker login -u $ARTIFACTORY_DOCKER_REGISTRY_USER -p $ARTIFACTORY_DOCKER_REGISTRY_PASSWORD $SPACE_BACN_ARTIFACTORY
+
+after_script:
+  - docker logout $SPACE_BACN_ARTIFACTORY
+
+
+build_and_deploy_image:
+  script:
+    - docker pull $DOCKER_IMAGE:latest || true
+    - docker build --build-arg UID=1000 --build-arg GID=1000 --cache-from $DOCKER_IMAGE:latest --tag $DOCKER_IMAGE:latest docker/.
+    - docker push $DOCKER_IMAGE:latest
+  stage: build
+  only:
+    changes:
+      - docker/**/*
+
+compile:
+  stage: test
+  tags:
+    - stardust
+    - Linux
+  script:
+    - docker pull $DOCKER_IMAGE:latest || true
+    - docker run -v $PWD:/work -w /work -t $DOCKER_IMAGE:latest make compile

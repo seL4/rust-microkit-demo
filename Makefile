@@ -102,3 +102,6 @@ run: $(loader)
 		-device loader,file=$(loader),addr=0x70000000,cpu-num=0 \
 		-serial mon:stdio \
 		-nographic
+
+compile: $(loader)
+	echo "Done"
