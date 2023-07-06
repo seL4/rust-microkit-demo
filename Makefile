@@ -69,8 +69,11 @@ $(loader): $(system_description) $(built_crates)
 		-r $(build_dir)/report.txt \
 		-o $@
 
+compile: $(loader)
+	echo "Done!"
+
 .PHONY: run
-run: $(loader)
+run: compile
 	qemu-system-aarch64 \
 		-machine virt \
 		-cpu cortex-a53 -m size=1G \
