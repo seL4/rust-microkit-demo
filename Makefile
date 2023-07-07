@@ -73,7 +73,7 @@ compile: $(loader)
 	echo "Done!"
 
 .PHONY: run
-run: compile
+run:
 	qemu-system-aarch64 \
 		-machine virt \
 		-cpu cortex-a53 -m size=1G \

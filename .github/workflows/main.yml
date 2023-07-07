@@ -45,11 +45,12 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: loader
-      - name: Compile simple sel4cp application
+      - name: Run simple sel4cp application
         uses: addnab/docker-run-action@v3
         with:
           image: podhrmic/rust-sel4-sel4cp-demo:latest
           options: -v ${{ github.workspace }}:/work
           run: |
+            ls build
             python3 test.py
             cat log.txt
