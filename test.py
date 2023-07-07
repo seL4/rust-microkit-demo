@@ -17,3 +17,5 @@ child.sendcontrol('A')
 child.send('x')
 # Termination confirmation
 child.expect('QEMU: Terminated',timeout=1)
+
+print("Test Succeeded!")
