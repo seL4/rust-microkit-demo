@@ -53,4 +53,8 @@ jobs:
           run: |
             ls build
             python3 test.py
-            cat log.txt
+      - uses: actions/upload-artifact@v3
+        with:
+          name: log
+          path: log.txt
+          retention-days: 1
