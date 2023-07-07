@@ -72,12 +72,4 @@ RUN cd sel4cp && \
 
 ENV SEL4CP_SDK=/deps/sel4cp/release/sel4cp-sdk-$SEL4CP_SDK_VERSION
 
-ARG UID
-ARG GID
-
-RUN groupadd -f -g $GID x && useradd -u $UID -g $GID -G sudo -m -p x x
-RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers # for convenience
-
-USER x
-
 WORKDIR /work
