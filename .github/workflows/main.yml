@@ -51,8 +51,8 @@ jobs:
           image: podhrmic/rust-sel4-sel4cp-demo:latest
           options: -v ${{ github.workspace }}:/work
           run: |
-            pwd
-            ls -l
+            mkdir -p build
+            mv loader.img build/loader.img
             python3 test.py
       - uses: actions/upload-artifact@v3
         with:
