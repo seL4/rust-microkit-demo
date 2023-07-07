@@ -45,16 +45,14 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           name: loader
-        run: |
-          pwd
-          ls -l
-          ls -l build
       - name: Run simple sel4cp application
         uses: addnab/docker-run-action@v3
         with:
           image: podhrmic/rust-sel4-sel4cp-demo:latest
           options: -v ${{ github.workspace }}:/work
           run: |
+            pwd
+            ls -l
             python3 test.py
       - uses: actions/upload-artifact@v3
         with:
