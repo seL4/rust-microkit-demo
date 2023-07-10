@@ -2,7 +2,7 @@
 
 use zerocopy::{AsBytes, FromBytes};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use sel4cp::{Channel, message::MessageInfo, memory_region::{MemoryRegion, ReadWrite, ExternallyShared}};
+use sel4cp::{Channel, message::MessageInfo, memory_region::{ExternallySharedRef, ExternallySharedPtr, ReadOnly, ReadWrite}};
 use smoltcp::{phy, time::Instant};
 
 mod ringbuffer;
@@ -22,20 +22,37 @@ pub type Bufs = [Buf];
 
 pub struct EthDevice {
     tx_ring: RingBuffer<usize, TX_BUF_SIZE>,
-    tx_bufs: MemoryRegion<Bufs, ReadWrite>,
+    tx_bufs: ExternallySharedRef<'static, Bufs, ReadWrite>,
     tx_chan: Channel,
     rx_ring: RingBuffer<RxReadyMsg, RX_BUF_SIZE>,
-    rx_bufs: MemoryRegion<Bufs, ReadWrite>,
+    rx_bufs: ExternallySharedRef<'static, Bufs, ReadWrite>,
     rx_chan: Channel,
 }
 
 impl EthDevice {
+    /// Constructor requiring pointers to the respective buffers. These should be constructed
+    /// using
+    ///
+    /// ```
+    /// let tx_bufs_ptr = memory_region_symbol!(my_tx_buf_symbol: *mut [Buf], n = TX_BUF_SIZE);
+    /// let rx_bufs_ptr = memory_region_symbol!(my_rx_buf_symbol: *mut [Buf], n = RX_BUF_SIZE);
+    /// ```
+    ///
+    /// A couple of things to note:
+    ///     * It's necessary to use [Buf], rather than the Bufs type alias, due to how
+    ///       memory_region_symbol is defined
+    ///     * The region pointed to by `my_tx_buf_symbol` should be TX_BUF_SIZE * MTU bytes (resp.
+    ///       `my_rx_buf_symbol`)
     pub fn new(
-        tx_bufs: MemoryRegion<Bufs, ReadWrite>, // XXX Pass in a ptr?
+        tx_bufs_ptr: core::ptr::NonNull<Bufs>,
         tx_chan: Channel,
-        rx_bufs: MemoryRegion<Bufs, ReadWrite>, // XXX Pass in a ptr?
+        rx_bufs_ptr: core::ptr::NonNull<Bufs>,
         rx_chan: Channel,
     ) -> Self {
+        let tx_bufs = unsafe { ExternallySharedRef::<'static, Bufs>::new(tx_bufs_ptr) };
+
+        let rx_bufs = unsafe { ExternallySharedRef::<'static, Bufs>::new(rx_bufs_ptr) };
+
         Self {
             tx_ring: RingBuffer::<usize, TX_BUF_SIZE>::from_iter(0..TX_BUF_SIZE),
             tx_bufs,
@@ -49,12 +66,12 @@ impl EthDevice {
 
 pub struct TxToken<'a> {
     index: usize,
-    buf: ExternallyShared<&'a mut Buf, ReadWrite>,
+    buf: ExternallySharedPtr<'a, Buf, ReadWrite>,
     chan: Channel
 }
 
 impl<'a> phy::TxToken for TxToken<'a> {
-    fn consume<R, F: FnOnce(&mut [u8]) -> R>(mut self, length: usize, f: F) -> R {
+    fn consume<R, F: FnOnce(&mut [u8]) -> R>(self, length: usize, f: F) -> R {
         debug_assert!(length <= MTU);
 
         let mut buf = [0; MTU];
@@ -76,7 +93,7 @@ impl<'a> phy::TxToken for TxToken<'a> {
 pub struct RxToken<'a> {
     index: usize,
     length: usize,
-    buf: ExternallyShared<&'a mut Buf, ReadWrite>,
+    buf: ExternallySharedPtr<'a, Buf, ReadOnly>,
     chan: Channel
 }
 
@@ -103,11 +120,11 @@ impl phy::Device for EthDevice {
     fn receive(&mut self, _timestamp: Instant) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
         let rx_ready = self.rx_ring.take()?;
         let tx_index = self.tx_ring.take()?; // XXX Handle the case where rx is non-empty, but tx
-                                             // is full
+                                             // is full; not important now, since RX_BUF_SIZE =
+                                             // TX_BUF_SIZE
 
-        // TODO Can we do this safely?
-        let rx_buf = ExternallyShared::new(unsafe { &mut *self.rx_bufs.start().offset(rx_ready.index as isize) });
-        let tx_buf = ExternallyShared::new(unsafe { &mut *self.tx_bufs.start().offset(tx_index as isize) });
+        let rx_buf = self.rx_bufs.as_ptr().index(rx_ready.index);
+        let tx_buf = self.tx_bufs.as_mut_ptr().index(tx_index);
 
         Some((
             Self::RxToken {
@@ -127,8 +144,7 @@ impl phy::Device for EthDevice {
     fn transmit(&mut self, _timestamp: Instant) -> Option<Self::TxToken<'_>> {
         let index = self.tx_ring.take()?;
 
-        // TODO Can we do this safely?
-        let tx_buf = ExternallyShared::new(unsafe { &mut *self.tx_bufs.start().offset(index as isize) });
+        let tx_buf = self.tx_bufs.as_mut_ptr().index(index);
 
         Some(Self::TxToken {
             index,
