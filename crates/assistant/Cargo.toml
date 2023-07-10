@@ -11,4 +11,4 @@ banscii-assistant-core = { path = "./core" }
 banscii-pl011-driver-interface-types = { path = "../pl011-driver/interface-types" }
 banscii-eth-driver-interface = { path = "../eth-driver/interface" }
 hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
-sel4cp = { git = "https://github.com/coliasgroup/rust-seL4", default-features = false, features = ["alloc"] }
+sel4cp = { git = "https://github.com/coliasgroup/rust-seL4", rev = "0997c8d54426d590a59b9894bfac9d47d804188e", default-features = false, features = ["alloc"] }
