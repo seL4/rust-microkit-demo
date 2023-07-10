@@ -16,7 +16,7 @@ use sel4cp::{protection_domain, Channel, Handler};
 
 use banscii_artist_interface_types as artist;
 use banscii_assistant_core::Draft;
-use banscii_pl011_driver_interface_types as driver;
+use uart_interface_types as driver;
 
 use embedded_hal::serial::{Read as SerialRead, Write as SerialWrite};
 

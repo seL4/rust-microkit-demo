@@ -6,7 +6,7 @@ use core::ptr;
 
 use sel4cp::{protection_domain, Channel};
 
-use banscii_pl011_driver_interface_types::*;
+use uart_interface_types::*;
 
 mod device;
 

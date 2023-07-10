@@ -6,7 +6,7 @@ use tock_registers::{register_bitfields, register_structs};
 
 use embedded_hal::serial;
 
-use banscii_pl011_driver_interface_types::IrqDevice;
+use uart_interface_types::IrqDevice;
 
 register_structs! {
     #[allow(non_snake_case)]

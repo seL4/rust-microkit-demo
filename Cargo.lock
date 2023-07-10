@@ -58,10 +58,10 @@ version = "0.1.0"
 dependencies = [
  "banscii-artist-interface-types",
  "banscii-assistant-core",
- "banscii-pl011-driver-interface-types",
  "embedded-hal",
  "hex",
  "sel4cp",
+ "uart-interface-types",
 ]
 
 [[package]]
@@ -77,24 +77,12 @@ dependencies = [
 name = "banscii-pl011-driver"
 version = "0.1.0"
 dependencies = [
- "banscii-pl011-driver-interface-types",
  "embedded-hal",
  "heapless",
  "nb 1.1.0",
  "sel4cp",
  "tock-registers",
-]
-
-[[package]]
-name = "banscii-pl011-driver-interface-types"
-version = "0.1.0"
-dependencies = [
- "embedded-hal",
- "heapless",
- "nb 1.1.0",
- "num_enum",
- "sel4cp",
- "zerocopy",
+ "uart-interface-types",
 ]
 
 [[package]]
@@ -1082,6 +1070,18 @@ name = "typenum"
 version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "497961ef93d974e23eb6f433eb5fe1b7930b659f06d12dec6fc44a8f554c0bba"
+
+[[package]]
+name = "uart-interface-types"
+version = "0.1.0"
+dependencies = [
+ "embedded-hal",
+ "heapless",
+ "nb 1.1.0",
+ "num_enum",
+ "sel4cp",
+ "zerocopy",
+]
 
 [[package]]
 name = "ucd-trie"
