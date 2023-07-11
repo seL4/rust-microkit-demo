@@ -22,28 +22,31 @@ pub const RX_BUF_SIZE: usize = 8;
 pub type Buf = [u8; MTU];
 pub type Bufs = [Buf];
 
-pub struct EthHandler<PhyDevice> {
+pub struct EthHandler/*<PhyDevice>*/ {
     channel: Channel,
-    phy_device: PhyDevice,
+    //phy_device: PhyDevice,
     tx_ring: RingBuffer<TxReadyMsg, TX_BUF_SIZE>,
     tx_bufs: ExternallySharedRef<'static, Bufs, ReadWrite>,
     rx_ring: RingBuffer<usize, RX_BUF_SIZE>,
     rx_bufs: ExternallySharedRef<'static, Bufs, ReadWrite>,
 }
 
+#[macro_export]
 macro_rules! new_eth_handler {
-    ($channel: ident, $phy_device: ident, $tx_buf_symbol: ident, $rx_buf_symbol: ident) => {
-        let tx_bufs_ptr = memory_region_symbol!($tx_buf_symbol: *mut [crate::Buf], n = crate::TX_BUF_SIZE);
-        let rx_bufs_ptr = memory_region_symbol!($rx_buf_symbol: *mut [crate::Buf], n = crate::RX_BUF_SIZE);
-        
-        $crate::EthDevice::new($channel, $phy_device, tx_bufs_ptr, rx_bufs_ptr)
+    ($channel: ident, $tx_buf_symbol: ident, $rx_buf_symbol: ident) => {
+        {
+            let tx_bufs_ptr = memory_region_symbol!($tx_buf_symbol: *mut [crate::Buf], n = crate::TX_BUF_SIZE);
+            let rx_bufs_ptr = memory_region_symbol!($rx_buf_symbol: *mut [crate::Buf], n = crate::RX_BUF_SIZE);
+            
+            $crate::EthDevice::new($channel, tx_bufs_ptr, rx_bufs_ptr)
+        }
     }
 }
 
-impl<PhyDevice: phy::Device> EthHandler<PhyDevice> {
+impl/*<PhyDevice: phy::Device>*/ EthHandler/*<PhyDevice>*/ {
     pub fn new(
         channel: Channel,
-        phy_device: PhyDevice, 
+        //phy_device: PhyDevice, 
         tx_bufs_ptr: core::ptr::NonNull<Bufs>,
         rx_bufs_ptr: core::ptr::NonNull<Bufs>,
     ) -> Self {
@@ -52,7 +55,7 @@ impl<PhyDevice: phy::Device> EthHandler<PhyDevice> {
 
         Self {
             channel,
-            phy_device,
+            //phy_device,
             tx_ring: RingBuffer::<TxReadyMsg, TX_BUF_SIZE>::empty(),
             tx_bufs,
             rx_ring: RingBuffer::<usize, RX_BUF_SIZE>::from_iter(0..RX_BUF_SIZE),
@@ -62,7 +65,7 @@ impl<PhyDevice: phy::Device> EthHandler<PhyDevice> {
 }
 
 // TODO Use underlying PhyDevice for send/recv.
-impl<PhyDevice: phy::Device> Handler for EthHandler<PhyDevice> {
+impl/*<PhyDevice: phy::Device>*/ Handler for EthHandler/*<PhyDevice>*/ {
     type Error = !;
 
     //fn notified(&mut self, channel: Channel) -> Result<(), Self::Error> {
@@ -115,12 +118,15 @@ pub struct EthDevice {
     rx_bufs: ExternallySharedRef<'static, Bufs, ReadWrite>,
 }
 
+#[macro_export]
 macro_rules! new_eth_device {
     ($channel: ident, $tx_buf_symbol: ident, $rx_buf_symbol: ident) => {
-        let tx_bufs_ptr = memory_region_symbol!($tx_buf_symbol: *mut [crate::Buf], n = crate::TX_BUF_SIZE);
-        let rx_bufs_ptr = memory_region_symbol!($rx_buf_symbol: *mut [crate::Buf], n = crate::RX_BUF_SIZE);
-        
-        $crate::EthDevice::new($channel, tx_bufs_ptr, rx_bufs_ptr)
+        {
+            let tx_bufs_ptr = memory_region_symbol!($tx_buf_symbol: *mut [crate::Buf], n = crate::TX_BUF_SIZE);
+            let rx_bufs_ptr = memory_region_symbol!($rx_buf_symbol: *mut [crate::Buf], n = crate::RX_BUF_SIZE);
+            
+            $crate::EthDevice::new($channel, tx_bufs_ptr, rx_bufs_ptr)
+        }
     }
 }
 
