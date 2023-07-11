@@ -239,6 +239,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "eth-client"
+version = "0.1.0"
+dependencies = [
+ "ethernet-interface-types",
+ "sel4cp",
+]
+
+[[package]]
 name = "eth-driver"
 version = "0.1.0"
 dependencies = [

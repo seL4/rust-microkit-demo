@@ -6,14 +6,26 @@
     <memory_region name="assistant_to_artist" size="0x4_000" />
     <memory_region name="artist_to_assistant" size="0x4_000" />
 
+    <memory_region name="eth_driver_tx_buf" size="0x4_000" />
+    <memory_region name="eth_driver_rx_buf" size="0x4_000" />
+
     <protection_domain name="pl011_driver" priority="254" pp="true">
         <program_image path="banscii-pl011-driver.elf" />
         <map mr="pl011_mmio" vaddr="0x2000000" perms="rw" setvar_vaddr="pl011_register_block" />
         <irq irq="33" id="0" />
     </protection_domain>
 
-    <protection_domain name="eth_driver" priority="251" pp="false">
+    <protection_domain name="eth_driver" priority="254" pp="true">
         <program_image path="eth-driver.elf" />
+        <!-- <map mr="eth_driver_tx_buf" vaddr="0x2_004_000" perms="rw" cached="true" setvar_vaddr="tx_buf_region_start" />
+        <map mr="eth_driver_rx_buf" vaddr="0x2_000_000" perms="rw" cached="true" setvar_vaddr="rx_buf_region_start" /> -->
+    </protection_domain>
+
+    <!-- This will eventually be network stack, but it can be just a loopback for now-->
+    <protection_domain name="eth_client" priority="254" pp="true">
+        <program_image path="eth-client.elf" />
+        <map mr="eth_driver_tx_buf" vaddr="0x2_004_000" perms="rw" cached="true" setvar_vaddr="tx_buf_region_start" />
+        <map mr="eth_driver_rx_buf" vaddr="0x2_000_000" perms="rw" cached="true" setvar_vaddr="rx_buf_region_start" />
     </protection_domain>
 
     <protection_domain name="assistant" priority="252">
@@ -36,6 +48,11 @@
     <channel>
         <end pd="assistant" id="1" />
         <end pd="artist" id="0" />
+    </channel>
+
+    <channel>
+        <end pd="eth_client" id="2" />
+        <end pd="eth_driver" id="2" />
     </channel>
 
 </system>
