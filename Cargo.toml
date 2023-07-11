@@ -7,4 +7,6 @@ members = [
     "crates/assistant",
     "crates/pl011-driver",
     "crates/uart-interface-types",
+    "crates/ethernet-interface-types",
+    "crates/eth-driver",
 ]

@@ -2,9 +2,7 @@
 #![no_main]
 #![feature(never_type)]
 
-use core::ptr;
-
-use sel4cp::{protection_domain, Channel};
+use sel4cp::{protection_domain, memory_region_symbol, Channel};
 
 use uart_interface_types::*;
 
@@ -16,13 +14,11 @@ use device::{Pl011Device, Pl011RegisterBlock};
 const DEVICE: Channel = Channel::new(0);
 const ASSISTANT: Channel = Channel::new(1);
 
-#[no_mangle]
-#[link_section = ".data"]
-static mut pl011_register_block: *const Pl011RegisterBlock = ptr::null();
-
 #[protection_domain]
 fn init() -> SerialHandler<Pl011Device> {
-    let device = unsafe { Pl011Device::new(pl011_register_block) };
+    let device = unsafe { Pl011Device::new(
+        memory_region_symbol!(pl011_register_block: *mut Pl011RegisterBlock).as_ptr(),
+    ) };
     device.init();
 
     SerialHandler::<Pl011Device>::new(device, DEVICE, ASSISTANT)

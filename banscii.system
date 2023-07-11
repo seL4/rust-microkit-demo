@@ -12,6 +12,10 @@
         <irq irq="33" id="0" />
     </protection_domain>
 
+    <protection_domain name="eth_driver" priority="251" pp="false">
+        <program_image path="eth-driver.elf" />
+    </protection_domain>
+
     <protection_domain name="assistant" priority="252">
         <program_image path="banscii-assistant.elf" />
         <map mr="artist_to_assistant" vaddr="0x2_004_000" perms="r" cached="true" setvar_vaddr="region_in_start" />
