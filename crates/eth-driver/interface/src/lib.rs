@@ -35,10 +35,10 @@ pub struct EthHandler/*<PhyDevice>*/ {
 macro_rules! new_eth_handler {
     ($channel: ident, $tx_buf_symbol: ident, $rx_buf_symbol: ident) => {
         {
-            let tx_bufs_ptr = memory_region_symbol!($tx_buf_symbol: *mut [crate::Buf], n = crate::TX_BUF_SIZE);
-            let rx_bufs_ptr = memory_region_symbol!($rx_buf_symbol: *mut [crate::Buf], n = crate::RX_BUF_SIZE);
+            let tx_bufs_ptr = memory_region_symbol!($tx_buf_symbol: *mut [$crate::Buf], n = $crate::TX_BUF_SIZE);
+            let rx_bufs_ptr = memory_region_symbol!($rx_buf_symbol: *mut [$crate::Buf], n = $crate::RX_BUF_SIZE);
             
-            $crate::EthDevice::new($channel, tx_bufs_ptr, rx_bufs_ptr)
+            $crate::EthHandler::new($channel, tx_bufs_ptr, rx_bufs_ptr)
         }
     }
 }
@@ -122,8 +122,8 @@ pub struct EthDevice {
 macro_rules! new_eth_device {
     ($channel: ident, $tx_buf_symbol: ident, $rx_buf_symbol: ident) => {
         {
-            let tx_bufs_ptr = memory_region_symbol!($tx_buf_symbol: *mut [crate::Buf], n = crate::TX_BUF_SIZE);
-            let rx_bufs_ptr = memory_region_symbol!($rx_buf_symbol: *mut [crate::Buf], n = crate::RX_BUF_SIZE);
+            let tx_bufs_ptr = memory_region_symbol!($tx_buf_symbol: *mut [$crate::Buf], n = $crate::TX_BUF_SIZE);
+            let rx_bufs_ptr = memory_region_symbol!($rx_buf_symbol: *mut [$crate::Buf], n = $crate::RX_BUF_SIZE);
             
             $crate::EthDevice::new($channel, tx_bufs_ptr, rx_bufs_ptr)
         }
