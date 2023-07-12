@@ -131,8 +131,9 @@ macro_rules! new_eth_device {
 }
 
 impl EthDevice {
-    /// Constructor requiring pointers to the respective buffers. These should be constructed
-    /// using
+    /// Constructor requiring pointers to the respective buffers.
+    ///
+    /// # Examples
     ///
     /// ```
     /// let tx_bufs_ptr = memory_region_symbol!(my_tx_buf_symbol: *mut [Buf], n = TX_BUF_SIZE);
@@ -140,10 +141,10 @@ impl EthDevice {
     /// ```
     ///
     /// A couple of things to note:
-    ///     * It's necessary to use [Buf], rather than the Bufs type alias, due to how
+    ///     * It's necessary to use `[Buf]`, rather than the [`Bufs`] type alias, due to how
     ///       memory_region_symbol is defined
-    ///     * The region pointed to by `my_tx_buf_symbol` should be TX_BUF_SIZE * MTU bytes (resp.
-    ///       `my_rx_buf_symbol`)
+    ///     * The region pointed to by `my_tx_buf_symbol` should be [`TX_BUF_SIZE`]* [`MTU`]
+    ///       bytes (resp. `my_rx_buf_symbol`)
     pub fn new(
         channel: Channel,
         tx_bufs_ptr: core::ptr::NonNull<Bufs>,
@@ -158,6 +159,34 @@ impl EthDevice {
             tx_bufs,
             rx_ring: RingBuffer::<RxReadyMsg, RX_BUF_SIZE>::empty(),
             rx_bufs,
+        }
+    }
+
+    /// Receive frames and put them into the ring buffer.
+    ///
+    /// To be called in the client's `Handler::protected` function, after ensuring that the channel
+    /// is the one shared with the `eth_driver` component. Something like the following:
+    ///
+    /// ```
+    /// match channel {
+    ///     DRIVER => {
+    ///         match msg_info.label().try_into().ok() {
+    ///             Some(ServerTag::RxReady) => phy_driver.rx_ready_handler(msg_info),
+    ///             None => MessageInfo::send(StatusMessageLabel::Error, NoMessageValue),
+    ///         }
+    ///     }
+    ///     // Handle other channels...
+    ///     None => unreachable!(),
+    /// }
+    /// ```
+    pub fn rx_ready_handler(&mut self, msg_info: MessageInfo) -> MessageInfo {
+        match msg_info.recv::<RxReadyMsg>() {
+            Ok(rx_ready_msg) => {
+                self.rx_ring.put(rx_ready_msg);
+
+                MessageInfo::send(StatusMessageLabel::Ok, NoMessageValue)
+            }
+            Err(_) => panic!("Received incorrectly formatted message from driver"),
         }
     }
 }
