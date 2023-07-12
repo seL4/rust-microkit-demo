@@ -55,4 +55,9 @@
         <end pd="eth_driver" id="2" />
     </channel>
 
+    <channel>
+        <end pd="assistant" id="3" />
+        <end pd="eth_client" id="3" />
+    </channel>
+
 </system>

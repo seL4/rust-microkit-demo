@@ -244,6 +244,7 @@ version = "0.1.0"
 dependencies = [
  "ethernet-interface-types",
  "sel4cp",
+ "smoltcp",
 ]
 
 [[package]]
@@ -1017,6 +1018,7 @@ dependencies = [
  "byteorder",
  "cfg-if",
  "heapless",
+ "log",
  "managed",
 ]
 
