@@ -2,21 +2,15 @@
 #![no_main]
 #![feature(never_type)]
 
-use sel4cp::{protection_domain, Channel, Handler};
+use sel4cp::{protection_domain, memory_region_symbol, Channel, Handler};
 #[allow(unused_imports)]
 use banscii_eth_driver_interface as interface;
 
+const CLIENT: Channel = Channel::new(0);
+
 #[protection_domain]
-fn init() -> ThisHandler {
-    todo!()
-}
-
-struct ThisHandler();
-
-impl Handler for ThisHandler {
-    type Error = !;
-
-    fn notified(&mut self, _channel: Channel) -> Result<(), Self::Error> {
-        todo!()
+fn init() -> interface::EthHandler {
+    unsafe {
+        interface::new_eth_handler!(CLIENT, tx_buf_region_start, rx_buf_region_start)
     }
 }
