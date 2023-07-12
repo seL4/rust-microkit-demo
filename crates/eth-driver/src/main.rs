@@ -4,7 +4,7 @@
 
 use sel4cp::{protection_domain, memory_region_symbol, Channel, Handler};
 #[allow(unused_imports)]
-use banscii_eth_driver_interface as interface;
+use eth_driver_interface as interface;
 
 const CLIENT: Channel = Channel::new(0);
 

@@ -1,5 +1,5 @@
 [package]
-name = "banscii-eth-driver-interface"
+name = "eth-driver-interface"
 version = "0.1.0"
 authors = ["Ben Hamlin <hamlinb@galois.com>"]
 edition = "2021"

@@ -49,14 +49,15 @@ crates := \
 	banscii-artist \
 	banscii-assistant \
 	banscii-pl011-driver \
-	banscii-eth-driver
+	uart-interface-types \
+	eth-driver \
+	eth-client
 
 built_crates := $(foreach crate,$(crates),$(call target_for_crate,$(crate)))
 
 $(eval $(foreach crate,$(crates),$(call build_crate,$(crate))))
 
 ### Loader
-
 system_description := banscii.system
 
 loader := $(build_dir)/loader.img
@@ -70,8 +71,11 @@ $(loader): $(system_description) $(built_crates)
 		-r $(build_dir)/report.txt \
 		-o $@
 
+compile: $(loader)
+	echo "Done!"
+
 .PHONY: run
-run: $(loader)
+run:
 	qemu-system-aarch64 \
 		-machine virt \
 		-cpu cortex-a53 -m size=1G \

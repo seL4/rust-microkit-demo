@@ -6,5 +6,7 @@ members = [
     "crates/artist",
     "crates/assistant",
     "crates/pl011-driver",
+    "crates/uart-interface-types",
     "crates/eth-driver",
+    "crates/eth-client",
 ]
