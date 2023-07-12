@@ -162,31 +162,41 @@ impl EthDevice {
         }
     }
 
-    /// Receive frames and put them into the ring buffer.
+    /// Handles ServerTag Receive frames and put them into the ring buffer.
     ///
-    /// To be called in the client's `Handler::protected` function, after ensuring that the channel
-    /// is the one shared with the `eth_driver` component. Something like the following:
+    /// To be called in the client's [`Handler::protected`] function, after ensuring that the channel
+    /// is the one shared with the `eth_driver` component.
+    ///
+    /// # Examples
     ///
     /// ```
-    /// match channel {
-    ///     DRIVER => {
-    ///         match msg_info.label().try_into().ok() {
-    ///             Some(ServerTag::RxReady) => phy_driver.rx_ready_handler(msg_info),
-    ///             None => MessageInfo::send(StatusMessageLabel::Error, NoMessageValue),
-    ///         }
-    ///     }
-    ///     // Handle other channels...
-    ///     None => unreachable!(),
+    /// fn protected(&mut self, channel: Channel, msg_info: MessageInfo) -> Result<MessageInfo, Self::Error> {
+    ///     Ok(match channel {
+    ///         DRIVER => my_phy_driver.server_tag_handler(msg_info),
+    ///         // Handle other channels...
+    ///         None => unreachable!(),
+    ///     })
     /// }
     /// ```
-    pub fn rx_ready_handler(&mut self, msg_info: MessageInfo) -> MessageInfo {
-        match msg_info.recv::<RxReadyMsg>() {
-            Ok(rx_ready_msg) => {
-                self.rx_ring.put(rx_ready_msg);
+    pub fn server_tag_handler(&mut self, msg_info: MessageInfo) -> MessageInfo {
+        match msg_info.label().try_into().ok() {
+            Some(ServerTag::RxReady) => match msg_info.recv() {
+                Ok(RxReadyMsg { index, length }) => {
+                    self.rx_ring.put(RxReadyMsg { index, length });
 
-                MessageInfo::send(StatusMessageLabel::Ok, NoMessageValue)
+                    MessageInfo::send(StatusMessageLabel::Ok, NoMessageValue)
+                }
+                Err(_) => MessageInfo::send(StatusMessageLabel::Error, NoMessageValue),
             }
-            Err(_) => panic!("Received incorrectly formatted message from driver"),
+            Some(ServerTag::TxDone) => match msg_info.recv() {
+                Ok(TxDoneMsg { index }) => {
+                    self.tx_ring.put(index); // XXX What if the index is wrong?
+
+                    MessageInfo::send(StatusMessageLabel::Ok, NoMessageValue)
+                }
+                Err(_) => MessageInfo::send(StatusMessageLabel::Error, NoMessageValue),
+            }
+            None => MessageInfo::send(StatusMessageLabel::Error, NoMessageValue),
         }
     }
 }
