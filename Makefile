@@ -48,7 +48,11 @@ endef
 crates := \
 	banscii-artist \
 	banscii-assistant \
-	banscii-pl011-driver
+	banscii-pl011-driver \
+	uart-interface-types \
+	eth-driver \
+	ethernet-interface-types \
+	eth-client
 
 built_crates := $(foreach crate,$(crates),$(call target_for_crate,$(crate)))
 

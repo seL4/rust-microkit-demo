@@ -1,0 +1,11 @@
+[package]
+name = "eth-client"
+version = "0.1.0"
+authors = ["Ben Hamlin <hamlinb@galois.com>"]
+edition = "2021"
+license = "BSD-2-Clause"
+
+[dependencies]
+ethernet-interface-types = { path = "../ethernet-interface-types" }
+sel4cp = { git = "https://github.com/coliasgroup/rust-seL4", rev = "0997c8d54426d590a59b9894bfac9d47d804188e", default-features = false }
+smoltcp = { version = "0.10.0", default-features = false, features = ["log","proto-ipv4","socket-tcp","medium-ethernet","medium-ip"] }

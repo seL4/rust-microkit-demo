@@ -6,7 +6,9 @@ edition = "2021"
 license = "BSD-2-Clause"
 
 [dependencies]
-banscii-pl011-driver-interface-types = { path = "./interface-types" }
+uart-interface-types = { path = "../uart-interface-types" }
 heapless = "0.7.16"
-sel4cp = { git = "https://github.com/coliasgroup/rust-seL4", default-features = false }
+sel4cp = { git = "https://github.com/coliasgroup/rust-seL4", rev = "0997c8d54426d590a59b9894bfac9d47d804188e", default-features = false }
 tock-registers = "0.8.1"
+embedded-hal = "0.2"
+nb = "1.0"

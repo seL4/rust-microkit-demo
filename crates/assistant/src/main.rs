@@ -6,21 +6,23 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use core::fmt;
 use core::fmt::Write;
 use core::mem;
 use core::str;
 
 use sel4cp::memory_region::{memory_region_symbol, ExternallySharedRef, ReadOnly, ReadWrite};
-use sel4cp::message::{MessageInfo, NoMessageLabel, NoMessageValue, StatusMessageLabel};
+use sel4cp::message::{MessageInfo, NoMessageLabel, StatusMessageLabel};
 use sel4cp::{protection_domain, Channel, Handler};
 
 use banscii_artist_interface_types as artist;
 use banscii_assistant_core::Draft;
-use banscii_pl011_driver_interface_types as driver;
+use uart_interface_types as driver;
 
-const PL011_DRIVER: Channel = Channel::new(0);
+use embedded_hal::serial::{Read as SerialRead, Write as SerialWrite};
+
+const UART_DRIVER: Channel = Channel::new(0);
 const TALENT: Channel = Channel::new(1);
+const ETH_TEST: Channel = Channel::new(3);
 
 const REGION_SIZE: usize = 0x4_000;
 
@@ -40,11 +42,13 @@ fn init() -> impl Handler {
         )
     };
 
-    prompt();
+    let mut serial = driver::SerialDriver::new(UART_DRIVER);
+    prompt(&mut serial);
 
     ThisHandler {
         region_in,
         region_out,
+        serial,
         buffer: Vec::new(),
     }
 }
@@ -52,6 +56,7 @@ fn init() -> impl Handler {
 struct ThisHandler {
     region_in: ExternallySharedRef<'static, [u8], ReadOnly>,
     region_out: ExternallySharedRef<'static, [u8], ReadWrite>,
+    serial: driver::SerialDriver,
     buffer: Vec<u8>,
 }
 
@@ -59,32 +64,30 @@ impl Handler for ThisHandler {
     type Error = !;
 
     fn notified(&mut self, channel: Channel) -> Result<(), Self::Error> {
-        match channel {
-            PL011_DRIVER => {
-                while let Some(b) = get_char() {
-                    if let b'\n' | b'\r' = b {
-                        newline();
-                        if !self.buffer.is_empty() {
+        if channel == self.serial.channel {
+            while let Ok(b) = self.serial.read() {
+                if let b'\n' | b'\r' = b {
+                    newline(&mut self.serial);
+                    if !self.buffer.is_empty() {
+                        self.try_create();
+                    }
+                    prompt(&mut self.serial);
+                    ETH_TEST.notify(); // ping the ethernet client
+                } else {
+                    let c = char::from(b);
+                    if c.is_ascii() && !c.is_ascii_control() {
+                        if self.buffer.len() == MAX_SUBJECT_LEN {
+                            writeln!(self.serial, "\n(char limit reached)").unwrap();
                             self.try_create();
+                            prompt(&mut self.serial);
                         }
-                        prompt();
-                    } else {
-                        let c = char::from(b);
-                        if c.is_ascii() && !c.is_ascii_control() {
-                            if self.buffer.len() == MAX_SUBJECT_LEN {
-                                writeln!(PutCharWrite, "\n(char limit reached)").unwrap();
-                                self.try_create();
-                                prompt();
-                            }
-                            put_char(b);
-                            self.buffer.push(b);
-                        }
+                        let _ = self.serial.write(b);
+                        self.buffer.push(b);
                     }
                 }
             }
-            _ => {
-                unreachable!()
-            }
+        } else {
+            unreachable!()
         }
         Ok(())
     }
@@ -99,7 +102,7 @@ impl ThisHandler {
                 self.create(&subject);
             }
             Err(_) => {
-                writeln!(PutCharWrite, "error: input is not valid utf-8").unwrap();
+                writeln!(self.serial, "error: input is not valid utf-8").unwrap();
             }
         };
         self.buffer.clear();
@@ -146,72 +149,32 @@ impl ThisHandler {
             .index(msg.signature_start..msg.signature_start + msg.signature_size)
             .copy_to_vec();
 
-        newline();
+        newline(&mut self.serial);
 
         for row in 0..height {
             for col in 0..width {
                 let i = row * width + col;
                 let b = pixel_data[i];
-                put_char(b);
+                let _ = self.serial.write(b);
             }
-            newline();
+            newline(&mut self.serial);
         }
 
-        newline();
+        newline(&mut self.serial);
 
-        writeln!(PutCharWrite, "Signature:").unwrap();
+        writeln!(self.serial, "Signature:").unwrap();
         for line in signature.chunks(32) {
-            writeln!(PutCharWrite, "{}", hex::encode(line)).unwrap();
+            writeln!(self.serial, "{}", hex::encode(line)).unwrap();
         }
 
-        newline();
+        newline(&mut self.serial);
     }
 }
 
-fn prompt() {
-    write!(PutCharWrite, "banscii> ").unwrap();
+fn prompt(serial: &mut driver::SerialDriver) {
+    write!(serial, "banscii> ").unwrap();
 }
 
-fn newline() {
-    writeln!(PutCharWrite, "").unwrap();
-}
-
-fn get_char() -> Option<u8> {
-    let msg_info = PL011_DRIVER.pp_call(MessageInfo::send(
-        driver::RequestTag::GetChar,
-        NoMessageValue,
-    ));
-    match msg_info.label().try_into().ok() {
-        Some(driver::GetCharResponseTag::Some) => match msg_info.recv() {
-            Ok(driver::GetCharSomeResponse { val }) => Some(val),
-            Err(_) => {
-                panic!()
-            }
-        },
-        Some(driver::GetCharResponseTag::None) => None,
-        _ => {
-            panic!()
-        }
-    }
-}
-
-fn put_char(val: u8) {
-    let msg_info = PL011_DRIVER.pp_call(MessageInfo::send(
-        driver::RequestTag::PutChar,
-        driver::PutCharRequest { val },
-    ));
-    assert_eq!(msg_info.label().try_into(), Ok(StatusMessageLabel::Ok));
-}
-
-fn put_str(s: &str) {
-    s.as_bytes().iter().copied().for_each(put_char)
-}
-
-struct PutCharWrite;
-
-impl fmt::Write for PutCharWrite {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
-        put_str(s);
-        Ok(())
-    }
+fn newline(serial: &mut driver::SerialDriver) {
+    writeln!(serial, "").unwrap();
 }
