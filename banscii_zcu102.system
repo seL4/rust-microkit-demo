@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<system>
+<!-- Boot with: setenv serverip 10.0.2.2 ; setenv ipaddr 10.0.2.15 ; tftpboot 0x40000000 loader.img ; go 0x40000000 -->
+    <!-- system description for ZCU102 platform-->
+    <!-- Define MMIO peripherals -->
+    <memory_region name="ttc0_mmio" size="0x1000" phys_addr="0xFF110000" />
+    <!--memory_region name="ttc1_mmio" size="0x1000" phys_addr="0xFF120000" />
+    <memory_region name="ttc2_mmio" size="0x1000" phys_addr="0xFF130000" />
+    <memory_region name="ttc3_mmio" size="0x1000" phys_addr="0xFF140000" /-->
+
+    <!-- GEM3 -->
+    <memory_region name="gem3_mmio" size="0x1000" phys_addr="0xFF0E0000" />
+
+    <!-- UART -->
+    <memory_region name="uart_mmio" size="0x1000" phys_addr="0xFF000000" />
+
+    <!-- Shared memory regions-->
+    <memory_region name="assistant_to_artist" size="0x4_000" />
+    <memory_region name="artist_to_assistant" size="0x4_000" />
+
+    <memory_region name="eth_driver_tx_buf" size="0x4_000" />
+    <memory_region name="eth_driver_rx_buf" size="0x4_000" />
+
+
+    <!-- Protected domains -->
+    <protection_domain name="uart_driver" priority="251" pp="true">
+        <program_image path="uart-driver.elf" />
+        <map mr="uart_mmio" vaddr="0xFF000000" perms="rw" setvar_vaddr="uart_register_block" />
+        <!-- all irq numbers are from: https://docs.xilinx.com/r/en-US/ug1085-zynq-ultrascale-trm/System-Interrupts?tocId=PD9FTob69sVTjQEM8sOQ~g-->
+        <irq irq="53" id="53" />
+        <!--irq irq="54" id="54" /-->
+    </protection_domain>
+
+    <!-- TBD -->
+    <protection_domain name="eth_driver" priority="254" pp="true">
+        <program_image path="eth-driver.elf" />
+        <!-- <map mr="eth_driver_tx_buf" vaddr="0x2_004_000" perms="rw" cached="true" setvar_vaddr="tx_buf_region_start" />
+        <map mr="eth_driver_rx_buf" vaddr="0x2_000_000" perms="rw" cached="true" setvar_vaddr="rx_buf_region_start" /> -->
+    </protection_domain>
+
+    <!-- This will eventually be network stack, but it can be just a loopback for now-->
+    <!-- TBD -->
+    <protection_domain name="eth_client" priority="254" pp="true">
+        <program_image path="eth-client.elf" />
+        <map mr="eth_driver_tx_buf" vaddr="0x2_004_000" perms="rw" cached="true" setvar_vaddr="tx_buf_region_start" />
+        <map mr="eth_driver_rx_buf" vaddr="0x2_000_000" perms="rw" cached="true" setvar_vaddr="rx_buf_region_start" />
+    </protection_domain>
+
+    <protection_domain name="assistant" priority="252">
+        <program_image path="banscii-assistant.elf" />
+        <map mr="artist_to_assistant" vaddr="0x2_004_000" perms="r" cached="true" setvar_vaddr="region_in_start" />
+        <map mr="assistant_to_artist" vaddr="0x2_000_000" perms="rw" cached="true" setvar_vaddr="region_out_start" />
+    </protection_domain>
+
+    <protection_domain name="artist" priority="253" pp="true">
+        <program_image path="banscii-artist.elf" />
+        <map mr="assistant_to_artist" vaddr="0x2_004_000" perms="r" cached="true" setvar_vaddr="region_in_start" />
+        <map mr="artist_to_assistant" vaddr="0x2_000_000" perms="rw" cached="true" setvar_vaddr="region_out_start" />
+    </protection_domain>
+
+    <!-- Channels -->
+    <channel>
+        <end pd="uart_driver" id="1" />
+        <end pd="assistant" id="0" />
+    </channel>
+
+    <channel>
+        <end pd="assistant" id="1" />
+        <end pd="artist" id="0" />
+    </channel>
+
+    <channel>
+        <end pd="eth_client" id="2" />
+        <end pd="eth_driver" id="2" />
+    </channel>
+
+    <channel>
+        <end pd="assistant" id="3" />
+        <end pd="eth_client" id="3" />
+    </channel>
+
+</system>
