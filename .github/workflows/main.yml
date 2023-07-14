@@ -37,7 +37,7 @@ jobs:
           path: build/loader.img
           retention-days: 1
 
-  run-demo:
+  run-demo-qemu:
     runs-on: ubuntu-latest
     needs: compile-demo
     steps:
@@ -47,7 +47,7 @@ jobs:
           submodules: recursive
       - uses: actions/download-artifact@v3
         with:
-          name: loader
+          name: loader-qemu
       - name: Run simple sel4cp application
         uses: addnab/docker-run-action@v3
         with:
