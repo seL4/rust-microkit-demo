@@ -1,8 +1,8 @@
 build_dir := build
 
-PLATFORM ?= QEMU
+PLATFORM ?= qemu
 
-ifeq ($(PLATFORM),QEMU)
+ifeq ($(PLATFORM),qemu)
 sel4cp_board := qemu_arm_virt
 system_description := banscii.system
 crates := \
