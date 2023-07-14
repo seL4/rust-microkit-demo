@@ -1,6 +1,31 @@
 build_dir := build
 
+PLATFORM ?= qemu
+
+ifeq ($(PLATFORM),qemu)
 sel4cp_board := qemu_arm_virt
+system_description := banscii.system
+crates := \
+	banscii-artist \
+	banscii-assistant \
+	banscii-pl011-driver \
+	uart-interface-types \
+	eth-driver \
+	ethernet-interface-types \
+	eth-client
+else
+sel4cp_board := zcu102
+system_description := banscii_zcu102.system
+crates := \
+	banscii-artist \
+	banscii-assistant \
+	uart-driver \
+	uart-interface-types \
+	eth-driver \
+	ethernet-interface-types \
+	eth-client
+endif
+
 sel4cp_config := debug
 sel4cp_sdk_config_dir := $(SEL4CP_SDK)/board/$(sel4cp_board)/$(sel4cp_config)
 
@@ -45,22 +70,11 @@ $(intermediate_target_for_crate):
 
 endef
 
-crates := \
-	banscii-artist \
-	banscii-assistant \
-	banscii-pl011-driver \
-	uart-interface-types \
-	eth-driver \
-	ethernet-interface-types \
-	eth-client
-
 built_crates := $(foreach crate,$(crates),$(call target_for_crate,$(crate)))
 
 $(eval $(foreach crate,$(crates),$(call build_crate,$(crate))))
 
 ### Loader
-
-system_description := banscii.system
 
 loader := $(build_dir)/loader.img
 

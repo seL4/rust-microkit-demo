@@ -22,7 +22,6 @@ use embedded_hal::serial::{Read as SerialRead, Write as SerialWrite};
 
 const UART_DRIVER: Channel = Channel::new(0);
 const TALENT: Channel = Channel::new(1);
-const ETH_TEST: Channel = Channel::new(3);
 
 const REGION_SIZE: usize = 0x4_000;
 
@@ -41,8 +40,8 @@ fn init() -> impl Handler {
             memory_region_symbol!(region_out_start: *mut [u8], n = REGION_SIZE),
         )
     };
-
     let mut serial = driver::SerialDriver::new(UART_DRIVER);
+
     prompt(&mut serial);
 
     ThisHandler {
@@ -72,7 +71,6 @@ impl Handler for ThisHandler {
                         self.try_create();
                     }
                     prompt(&mut self.serial);
-                    ETH_TEST.notify(); // ping the ethernet client
                 } else {
                     let c = char::from(b);
                     if c.is_ascii() && !c.is_ascii_control() {
