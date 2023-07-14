@@ -1102,16 +1102,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "timer"
-version = "0.1.0"
-dependencies = [
- "embedded-hal",
- "nb 1.1.0",
- "sel4cp",
- "tock-registers",
-]
-
-[[package]]
 name = "tock-registers"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

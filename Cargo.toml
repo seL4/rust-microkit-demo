@@ -12,5 +12,4 @@ members = [
     "crates/ethernet-interface-types",
     "crates/eth-driver",
     "crates/eth-client",
-    "crates/timer",
 ]
