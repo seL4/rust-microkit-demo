@@ -9,6 +9,13 @@ use embedded_hal::serial;
 
 use uart_interface_types::IrqDevice;
 
+#[link(name = "uartps")]
+extern "C" {
+    pub fn uartps_init() -> bool;
+    pub fn uartps_handle_irq();
+    pub fn uartps_rx(byte: *mut u8) -> bool;
+}
+
 
 // ZCU102 has PS UART, see https://docs.xilinx.com/r/en-US/ug1085-zynq-ultrascale-trm/Example-Read-Message-from-RXFIFO-Using-Interrupt-Method
 // UART controller section
@@ -155,58 +162,20 @@ impl UartDevice {
     }
 
     pub fn init(&self) {
-        debug_print!("Initializing Uart device\n");
-        // TODO: this might be needed for real platform
-        let _clk_div = match self.MR.read(Mode::CLKS) {
-            0 => 1,
-            1 => 8,
-            _ => unimplemented!(),
-        };
-
-        // set to 115200b
-        let cd115200 = 62;
-        let bdiv115200 = 6;
-
-        // disable UART
-        self.CR.modify(Control::RXDIS::SET + Control::TXDIS::SET);
-        // set baud rate gen value
-        self.BAUDGEN.write(BaudRateGen::CD.val(cd115200));
-        self.BAUDDIV.write(BaudRateDivider::BDIV.val(bdiv115200));
-        // Reset TX and RX
-        self.CR.write(Control::TXRES::SET + Control::RXRES::SET);
-        // Enable RX and TX
-        self.CR.modify(Control::TXEN::SET + Control::RXEN::SET);
-        // Set mode to 8-bit, 1 stop, and no parity, normal mode
-        self.MR.modify(Mode::CHRL.val(0x00) + Mode::NBSTOP.val(0x00) + Mode::PAR.val(0x00) + Mode::CHMODE.val(0x00));
-        // Write value to set RXFIFO trigger 8 bytes.
-        self.RXWM.write(ReceiverFifoTrigger::RTRIG.val(8));
-        // Write RX time-out value.
-        self.TXTOUT.write(ReceiverTimeout::RTO.val(1));
-        // Write values to disable all interrupts.
-        self.IDR.set(0x1FFF);
-
-        // enable interrupts
-        let mask = Interrupt::TIMEOUT::SET +
-            Interrupt::PARE::SET + Interrupt::FRAME::SET + Interrupt::ROVR::SET +
-            Interrupt::TEMPTY::SET + Interrupt::RFULL::SET + Interrupt::RTRIG::SET +
-            Interrupt::RBRK::SET;
-        self.IER.write(mask);
-        debug_print!("Initializing Uart device done\n");
+        unsafe {
+            if !uartps_init() {
+                debug_print!("Uart init error.\n");
+            }
+        }
     }
 
 }
 
 impl IrqDevice for UartDevice {
     fn handle_irq(&self) {
-        // Read the interrupt ID register to determine which
-        // interrupt is active
-        let imask = self.IMR.get();
-        let istat = self.ISR.get();
-
-        // TODO: process interrupts
-
-        // Clear the interrupt status
-        self.ISR.set(istat & imask);
+        unsafe {
+            uartps_handle_irq();
+        }
     }
 }
 
@@ -227,26 +196,13 @@ impl serial::Read<u8> for UartDevice {
     type Error = ReadError;
 
     fn read(&mut self) -> nb::Result<u8, Self::Error> {
-        // Disable all the interrupts.
-        // This stops a previous operation that may be interrupt driven
-        let imr = self.IMR.get();
-        self.IDR.set(0x00003FFF);
-
-        // Receive the data from the device
-        // Read the Channel Status Register to determine if there is any data in
-        // the RX FIFO
-        if self.SR.matches_all(ChannelStatus::REMPTY::CLEAR) {
-            // TODO: check for errors in RXBS
-            let byte = self.FIFO.get();
-            //debug_print!("Got: {}\n",byte as char);
-            // Restore the interrupt state
-            self.IER.set(imr);
-            return nb::Result::Ok(byte);
-        } else {
-            // Restore the interrupt state
-            //debug_print!("No data!\n");
-            self.IER.set(imr);
-            return Err(nb::Error::WouldBlock);
+        let mut val: u8 = 0;
+        unsafe {
+            if uartps_rx(&mut val) {
+                return nb::Result::Ok(val);
+            } else {
+                return Err(nb::Error::WouldBlock);
+            }
         }
     }
 }

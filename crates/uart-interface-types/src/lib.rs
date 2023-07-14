@@ -10,7 +10,6 @@ use embedded_hal::prelude::_embedded_hal_serial_Write;
 use sel4cp::{Channel, Handler};
 use sel4cp::message::{MessageInfo, NoMessageValue, StatusMessageLabel};
 use sel4cp::message::MessageInfoRecvError;
-use sel4cp::debug_print;
 
 /// Handle messages using an implementor of [serial::Read<u8>] and [serial::Write<u8>].
 #[derive(Clone, Debug)]
@@ -87,7 +86,6 @@ where
         // TODO Handle errors
         if channel == self.serial {
             while let Ok(c) = self.device.read() {
-                debug_print!("Got: {}\n",c as char);
                 if let Err(_) = self.buffer.push_back(c) {
                     return Err(SerialHandlerError::BufferFull);
                 }
