@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <system>
-
+    <!-- system description for qemu_arm_virt platform-->
     <memory_region name="pl011_mmio" size="0x1000" phys_addr="0x9000000" />
 
     <memory_region name="assistant_to_artist" size="0x4_000" />

@@ -13,6 +13,7 @@ use core::str;
 use sel4cp::memory_region::{memory_region_symbol, ExternallySharedRef, ReadOnly, ReadWrite};
 use sel4cp::message::{MessageInfo, NoMessageLabel, StatusMessageLabel};
 use sel4cp::{protection_domain, Channel, Handler};
+use sel4cp::debug_print;
 
 use banscii_artist_interface_types as artist;
 use banscii_assistant_core::Draft;
@@ -22,7 +23,6 @@ use embedded_hal::serial::{Read as SerialRead, Write as SerialWrite};
 
 const UART_DRIVER: Channel = Channel::new(0);
 const TALENT: Channel = Channel::new(1);
-const ETH_TEST: Channel = Channel::new(3);
 
 const REGION_SIZE: usize = 0x4_000;
 
@@ -41,9 +41,11 @@ fn init() -> impl Handler {
             memory_region_symbol!(region_out_start: *mut [u8], n = REGION_SIZE),
         )
     };
-
+    debug_print!("A1!\n");
     let mut serial = driver::SerialDriver::new(UART_DRIVER);
+    debug_print!("A2!\n");
     prompt(&mut serial);
+    debug_print!("A3!\n");
 
     ThisHandler {
         region_in,
@@ -66,13 +68,13 @@ impl Handler for ThisHandler {
     fn notified(&mut self, channel: Channel) -> Result<(), Self::Error> {
         if channel == self.serial.channel {
             while let Ok(b) = self.serial.read() {
+                debug_print!("A: {}\n",b as char);
                 if let b'\n' | b'\r' = b {
                     newline(&mut self.serial);
                     if !self.buffer.is_empty() {
                         self.try_create();
                     }
                     prompt(&mut self.serial);
-                    ETH_TEST.notify(); // ping the ethernet client
                 } else {
                     let c = char::from(b);
                     if c.is_ascii() && !c.is_ascii_control() {
@@ -173,8 +175,10 @@ impl ThisHandler {
 
 fn prompt(serial: &mut driver::SerialDriver) {
     write!(serial, "banscii> ").unwrap();
+    debug_print!("banscii> ");
 }
 
 fn newline(serial: &mut driver::SerialDriver) {
     writeln!(serial, "").unwrap();
+    debug_print!("");
 }

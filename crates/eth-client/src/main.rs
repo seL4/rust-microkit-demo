@@ -21,7 +21,6 @@ const ETH_TEST: Channel = Channel::new(3);
 #[protection_domain]
 fn init() -> ThisHandler {
     let device = unsafe { interface::new_eth_device!(DRIVER, tx_buf_region_start,rx_buf_region_start) };
-    
     ThisHandler{
         device,
     }

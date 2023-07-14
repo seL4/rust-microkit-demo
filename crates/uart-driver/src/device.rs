@@ -185,8 +185,12 @@ impl UartDevice {
         // Write values to disable all interrupts.
         self.IDR.set(0x1FFF);
 
-        // enable RX Irq
-        self.IER.write(Interrupt::RTRIG::SET);
+        // enable interrupts
+        let mask = Interrupt::TIMEOUT::SET +
+            Interrupt::PARE::SET + Interrupt::FRAME::SET + Interrupt::ROVR::SET +
+            Interrupt::TEMPTY::SET + Interrupt::RFULL::SET + Interrupt::RTRIG::SET +
+            Interrupt::RBRK::SET;
+        self.IER.write(mask);
         debug_print!("Initializing Uart device done\n");
     }
 
@@ -194,7 +198,15 @@ impl UartDevice {
 
 impl IrqDevice for UartDevice {
     fn handle_irq(&self) {
-        // TODO: handle interrupts better
+        // Read the interrupt ID register to determine which
+        // interrupt is active
+        let imask = self.IMR.get();
+        let istat = self.ISR.get();
+
+        // TODO: process interrupts
+
+        // Clear the interrupt status
+        self.ISR.set(istat & imask);
     }
 }
 
@@ -215,7 +227,6 @@ impl serial::Read<u8> for UartDevice {
     type Error = ReadError;
 
     fn read(&mut self) -> nb::Result<u8, Self::Error> {
-        
         // Disable all the interrupts.
         // This stops a previous operation that may be interrupt driven
         let imr = self.IMR.get();
@@ -233,6 +244,7 @@ impl serial::Read<u8> for UartDevice {
             return nb::Result::Ok(byte);
         } else {
             // Restore the interrupt state
+            //debug_print!("No data!\n");
             self.IER.set(imr);
             return Err(nb::Error::WouldBlock);
         }
@@ -248,17 +260,17 @@ impl serial::Write<u8> for UartDevice {
     type Error = WriteError;
 
     fn write(&mut self, byte: u8) -> nb::Result<(), Self::Error> {
-        // Disable the UART transmit interrupts to allow this call to stop a
-        // previous operation that may be interrupt driven.
-        self.IDR.modify_no_read(self.IMR.extract(), Interrupt::TEMPTY::SET + Interrupt::TFULL::SET);
-        // send data
+        // // Disable the UART transmit interrupts to allow this call to stop a
+        // // previous operation that may be interrupt driven.
+        // self.IDR.modify_no_read(self.IMR.extract(), Interrupt::TEMPTY::SET + Interrupt::TFULL::SET);
+        // // send data
         self.FIFO.set(byte);
-        // If interrupts are enabled as indicated by the receive interrupt, then
-        // enable the TX FIFO empty interrupt, so further action can be taken
-        // for this sending.
-        if self.IMR.matches_any(Interrupt::RFULL::SET + Interrupt::REMPTY::SET + Interrupt::ROVR::SET) {
-            self.IER.modify_no_read(self.IMR.extract(), Interrupt::TEMPTY::SET);
-        }
+        // // If interrupts are enabled as indicated by the receive interrupt, then
+        // // enable the TX FIFO empty interrupt, so further action can be taken
+        // // for this sending.
+        // if self.IMR.matches_any(Interrupt::RFULL::SET + Interrupt::REMPTY::SET + Interrupt::ROVR::SET) {
+        //     self.IER.modify_no_read(self.IMR.extract(), Interrupt::TEMPTY::SET);
+        // }
         nb::Result::Ok(())
     }
 

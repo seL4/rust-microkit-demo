@@ -93,7 +93,7 @@ uartps.elf:
 
 loader := $(build_dir)/loader.img
 
-$(loader): $(system_description) $(built_crates)
+$(loader): $(system_description) $(built_crates) uartps.elf
 	$(SEL4CP_SDK)/bin/sel4cp \
 		$< \
 		--search-path $(build_dir) \
