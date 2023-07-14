@@ -75,25 +75,11 @@ built_crates := $(foreach crate,$(crates),$(call target_for_crate,$(crate)))
 
 $(eval $(foreach crate,$(crates),$(call build_crate,$(crate))))
 
-# C components
-uartps.elf:
-	BUILD_DIR=$(abspath $(build_dir)) \
-	SEL4CP_SDK=$(abspath $(SEL4CP_SDK)) \
-	SEL4CP_BOARD=$(sel4cp_board) \
-	SEL4CP_CONFIG=debug \
-	make -C crates/uartps clean
-	BUILD_DIR=$(abspath $(build_dir)) \
-	SEL4CP_SDK=$(abspath $(SEL4CP_SDK)) \
-	SEL4CP_BOARD=$(sel4cp_board) \
-	SEL4CP_CONFIG=debug \
-	make -C crates/uartps uartps.elf
-	mv crates/uartps/uartps.elf $(build_dir)/.
-
 ### Loader
 
 loader := $(build_dir)/loader.img
 
-$(loader): $(system_description) $(built_crates) uartps.elf
+$(loader): $(system_description) $(built_crates)
 	$(SEL4CP_SDK)/bin/sel4cp \
 		$< \
 		--search-path $(build_dir) \
