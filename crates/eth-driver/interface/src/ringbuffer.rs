@@ -2,6 +2,7 @@
 pub struct RingBuffer<T, const SIZE: usize> {
     take_index: usize,
     put_index: usize,
+    length: usize,
     entries: [T; SIZE],
 }
 
@@ -10,6 +11,7 @@ impl<T: Default + Copy, const SIZE: usize> RingBuffer<T, SIZE> {
         Self {
             take_index: 0,
             put_index: 0,
+            length: 0,
             entries: [T::default(); SIZE],
         }
     }
@@ -27,9 +29,18 @@ impl<T: Default + Copy, const SIZE: usize> core::iter::FromIterator<T> for RingB
     }
 }
 
+impl<T, const SIZE: usize> core::fmt::Debug for RingBuffer<T, SIZE> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("RingBuffer")
+            .field("take_index", &self.take_index)
+            .field("put_index", &self.put_index)
+            .finish()
+    }
+}
+
 impl<T: Copy, const SIZE: usize> RingBuffer<T, SIZE> {
     pub fn len(&self) -> usize {
-        ((SIZE + self.put_index) - self.take_index) % SIZE
+        self.length
     }
 
     pub fn is_full(&self) -> bool {
@@ -46,6 +57,7 @@ impl<T: Copy, const SIZE: usize> RingBuffer<T, SIZE> {
         } else {
             let entry = self.entries[self.take_index].clone();
             self.take_index = (self.take_index + 1) % SIZE;
+            self.length -= 1;
 
             Some(entry)
         }
@@ -57,6 +69,7 @@ impl<T: Copy, const SIZE: usize> RingBuffer<T, SIZE> {
         } else {
             self.entries[self.put_index] = entry;
             self.put_index = (self.put_index + 1) % SIZE;
+            self.length += 1;
 
             Some(())
         }

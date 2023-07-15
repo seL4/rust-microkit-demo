@@ -105,6 +105,7 @@ impl/*<PhyDevice: phy::Device>*/ Handler for EthHandler/*<PhyDevice>*/ {
                 None => panic!("Received incorrectly formatted message from client"),
             }
         } else {
+            sel4cp::debug_print!("channel = {:?}\n", self.channel);
             unreachable!()
         })
     }
@@ -112,9 +113,9 @@ impl/*<PhyDevice: phy::Device>*/ Handler for EthHandler/*<PhyDevice>*/ {
 
 pub struct EthDevice {
     channel: Channel,
-    tx_ring: RingBuffer<usize, TX_BUF_SIZE>,
+    pub tx_ring: RingBuffer<usize, TX_BUF_SIZE>,
     tx_bufs: ExternallySharedRef<'static, Bufs, ReadWrite>,
-    rx_ring: RingBuffer<RxReadyMsg, RX_BUF_SIZE>,
+    pub rx_ring: RingBuffer<RxReadyMsg, RX_BUF_SIZE>,
     rx_bufs: ExternallySharedRef<'static, Bufs, ReadWrite>,
 }
 

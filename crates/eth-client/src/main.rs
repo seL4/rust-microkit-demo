@@ -33,32 +33,37 @@ impl Handler for ThisHandler {
     type Error = !;
 
     fn notified(&mut self, channel: Channel) -> Result<(), Self::Error> {
-        if channel == ETH_TEST {
-            debug_print!("Got notification!\n");
-            match self.device.transmit(Instant::from_millis(100)) {
-                None => {debug_print!("Didn't get a transmit token\n");},
-                Some(tx) => {
-                    debug_print!("Sending some data\n");
-                    tx.consume(4, |buffer| {buffer[0] = 1})
+        match channel {
+            ETH_TEST => {
+                debug_print!("Got notification!\n");
+                match self.device.transmit(Instant::from_millis(100)) {
+                    None => {debug_print!("Didn't get a transmit token\n");},
+                    Some(tx) => {
+                        debug_print!("Sending some data\n");
+                        tx.consume(4, |buffer| {buffer[0] = 1})
+                    }
+                }
+                match self.device.receive(Instant::from_millis(100)) {
+                    None => {debug_print!("Didn't get RX tokens\n");},
+                    Some(tokens) => {
+                        debug_print!("Got some Rx tokens\n");
+                    }
                 }
             }
-            match self.device.receive(Instant::from_millis(100)) {
-                None => {debug_print!("Didn't get RX tokens\n");},
-                Some(tokens) => {
-                    debug_print!("Got some Rx tokens\n");
-                }
-            }
-        } else {
-            unreachable!()
+            _ => unreachable!(),
         }
         Ok(())
     }
 
     fn protected(
         &mut self,
-        _channel: Channel,
-        _msg_info: MessageInfo,
+        channel: Channel,
+        msg_info: MessageInfo,
     ) -> Result<MessageInfo, Self::Error> {
-        todo!()
+        debug_print!("Got here\n");
+        Ok(match channel {
+            DRIVER => self.device.server_tag_handler(msg_info),
+            _ => unreachable!(),
+        })
     }
 }

@@ -6,7 +6,7 @@ use sel4cp::{protection_domain, memory_region_symbol, Channel, Handler};
 #[allow(unused_imports)]
 use eth_driver_interface as interface;
 
-const CLIENT: Channel = Channel::new(0);
+const CLIENT: Channel = Channel::new(2);
 
 #[protection_domain]
 fn init() -> interface::EthHandler {
