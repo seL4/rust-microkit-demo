@@ -8,4 +8,4 @@ license = "BSD-2-Clause"
 [dependencies]
 smoltcp = { version = "0.10.0", default-features = false, features = ["proto-ipv4","medium-ethernet","socket-raw"] }
 sel4cp = { git = "https://github.com/coliasgroup/rust-seL4", rev = "0997c8d54426d590a59b9894bfac9d47d804188e", default-features = false }
-sel4-shared-ring-buffer = { git = "https://github.com/protoben/rust-seL4", rev = "38f49ebe003d44c6af316c7a12a2618372930d30", default-features = false }
+sel4-shared-ring-buffer = { git = "https://github.com/protoben/rust-seL4", rev = "58ae0cfe5cf7a5c8dc13f315062ec94dee784c47", default-features = false }

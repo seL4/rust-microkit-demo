@@ -59,7 +59,7 @@ impl Handler for ThisHandler {
                         None => continue,
                         Some((rx, _tx)) => {
                             debug_print!("Got an RX token\n");
-                            rx.consume(|buffer| debug_print!("RX token contains {}\n", buffer[0]));
+                            rx.consume(|buffer| debug_print!("RX token contains: {}\n", buffer[0]));
                             break;
                         }
                     }

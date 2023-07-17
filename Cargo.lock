@@ -835,7 +835,7 @@ source = "git+https://github.com/coliasgroup/rust-seL4?rev=0997c8d54426d590a59b9
 [[package]]
 name = "sel4-externally-shared"
 version = "0.1.0"
-source = "git+https://github.com/protoben/rust-seL4?rev=38f49ebe003d44c6af316c7a12a2618372930d30#38f49ebe003d44c6af316c7a12a2618372930d30"
+source = "git+https://github.com/protoben/rust-seL4?rev=58ae0cfe5cf7a5c8dc13f315062ec94dee784c47#58ae0cfe5cf7a5c8dc13f315062ec94dee784c47"
 
 [[package]]
 name = "sel4-immediate-sync-once-cell"
@@ -889,10 +889,10 @@ dependencies = [
 [[package]]
 name = "sel4-shared-ring-buffer"
 version = "0.1.0"
-source = "git+https://github.com/protoben/rust-seL4?rev=38f49ebe003d44c6af316c7a12a2618372930d30#38f49ebe003d44c6af316c7a12a2618372930d30"
+source = "git+https://github.com/protoben/rust-seL4?rev=58ae0cfe5cf7a5c8dc13f315062ec94dee784c47#58ae0cfe5cf7a5c8dc13f315062ec94dee784c47"
 dependencies = [
  "log",
- "sel4-externally-shared 0.1.0 (git+https://github.com/protoben/rust-seL4?rev=38f49ebe003d44c6af316c7a12a2618372930d30)",
+ "sel4-externally-shared 0.1.0 (git+https://github.com/protoben/rust-seL4?rev=58ae0cfe5cf7a5c8dc13f315062ec94dee784c47)",
  "zerocopy",
 ]
 
