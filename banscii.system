@@ -8,6 +8,10 @@
 
     <memory_region name="eth_driver_tx_buf" size="0x4_000" />
     <memory_region name="eth_driver_rx_buf" size="0x4_000" />
+    <memory_region name="eth_driver_tx_free_region" size="0x4_000" />
+    <memory_region name="eth_driver_tx_used_region" size="0x4_000" />
+    <memory_region name="eth_driver_rx_free_region" size="0x4_000" />
+    <memory_region name="eth_driver_rx_used_region" size="0x4_000" />
 
     <protection_domain name="pl011_driver" priority="254" pp="true">
         <program_image path="banscii-pl011-driver.elf" />
@@ -17,6 +21,10 @@
 
     <protection_domain name="eth_driver" priority="254" pp="true">
         <program_image path="eth-driver.elf" />
+        <map mr="eth_driver_rx_used_region" vaddr="0x2_014_000" perms="rw" cached="true" setvar_vaddr="rx_used_region_start" />
+        <map mr="eth_driver_rx_free_region" vaddr="0x2_010_000" perms="rw" cached="true" setvar_vaddr="rx_free_region_start" />
+        <map mr="eth_driver_tx_used_region" vaddr="0x2_00c_000" perms="rw" cached="true" setvar_vaddr="tx_used_region_start" />
+        <map mr="eth_driver_tx_free_region" vaddr="0x2_008_000" perms="rw" cached="true" setvar_vaddr="tx_free_region_start" />
         <map mr="eth_driver_tx_buf" vaddr="0x2_004_000" perms="rw" cached="true" setvar_vaddr="tx_buf_region_start" />
         <map mr="eth_driver_rx_buf" vaddr="0x2_000_000" perms="rw" cached="true" setvar_vaddr="rx_buf_region_start" />
     </protection_domain>
@@ -24,6 +32,10 @@
     <!-- This will eventually be network stack, but it can be just a loopback for now-->
     <protection_domain name="eth_client" priority="254" pp="true">
         <program_image path="eth-client.elf" />
+        <map mr="eth_driver_rx_used_region" vaddr="0x2_014_000" perms="rw" cached="true" setvar_vaddr="rx_used_region_start" />
+        <map mr="eth_driver_rx_free_region" vaddr="0x2_010_000" perms="rw" cached="true" setvar_vaddr="rx_free_region_start" />
+        <map mr="eth_driver_tx_used_region" vaddr="0x2_00c_000" perms="rw" cached="true" setvar_vaddr="tx_used_region_start" />
+        <map mr="eth_driver_tx_free_region" vaddr="0x2_008_000" perms="rw" cached="true" setvar_vaddr="tx_free_region_start" />
         <map mr="eth_driver_tx_buf" vaddr="0x2_004_000" perms="rw" cached="true" setvar_vaddr="tx_buf_region_start" />
         <map mr="eth_driver_rx_buf" vaddr="0x2_000_000" perms="rw" cached="true" setvar_vaddr="rx_buf_region_start" />
     </protection_domain>

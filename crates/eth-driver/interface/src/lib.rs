@@ -1,14 +1,10 @@
 #![no_std]
 #![feature(never_type)]
 
-use zerocopy::{AsBytes, FromBytes};
-use num_enum::{IntoPrimitive, TryFromPrimitive};
-use sel4cp::{Channel, Handler, message::{NoMessageValue, StatusMessageLabel, MessageInfo}};
-use sel4cp::memory_region::{ExternallySharedRef, ExternallySharedPtr, ReadOnly, ReadWrite};
+use sel4cp::{Channel, Handler, debug_print};
+use sel4cp::memory_region::{ExternallySharedRef, ExternallySharedPtr, ReadWrite};
+use sel4_shared_ring_buffer::{RingBuffers, RingBuffer, RawRingBuffer, Descriptor};
 use smoltcp::{phy, time::Instant};
-
-mod ringbuffer;
-use crate::ringbuffer::*;
 
 // Assuming a fixed (standard) MTU for now.
 // TODO Revisit once we know more about hardware.
@@ -25,40 +21,64 @@ pub type Bufs = [Buf];
 pub struct EthHandler/*<PhyDevice>*/ {
     channel: Channel,
     //phy_device: PhyDevice,
-    tx_ring: RingBuffer<TxReadyMsg, TX_BUF_SIZE>,
+    tx_ring: RingBuffers<'static, ()>,
     tx_bufs: ExternallySharedRef<'static, Bufs, ReadWrite>,
-    rx_ring: RingBuffer<usize, RX_BUF_SIZE>,
+    rx_ring: RingBuffers<'static, ()>,
     rx_bufs: ExternallySharedRef<'static, Bufs, ReadWrite>,
 }
 
-#[macro_export]
-macro_rules! new_eth_handler {
-    ($channel: ident, $tx_buf_symbol: ident, $rx_buf_symbol: ident) => {
-        {
-            let tx_bufs_ptr = memory_region_symbol!($tx_buf_symbol: *mut [$crate::Buf], n = $crate::TX_BUF_SIZE);
-            let rx_bufs_ptr = memory_region_symbol!($rx_buf_symbol: *mut [$crate::Buf], n = $crate::RX_BUF_SIZE);
-            
-            $crate::EthHandler::new($channel, tx_bufs_ptr, rx_bufs_ptr)
-        }
-    }
-}
+//#[macro_export]
+//macro_rules! new_eth_handler {
+//    ($channel: ident, $tx_buf_symbol: ident, $rx_buf_symbol: ident) => {
+//        {
+//            let tx_bufs_ptr = memory_region_symbol!($tx_buf_symbol: *mut [$crate::Buf], n = $crate::TX_BUF_SIZE);
+//            let rx_bufs_ptr = memory_region_symbol!($rx_buf_symbol: *mut [$crate::Buf], n = $crate::RX_BUF_SIZE);
+//            
+//            $crate::EthHandler::new($channel, tx_bufs_ptr, rx_bufs_ptr)
+//        }
+//    }
+//}
 
 impl/*<PhyDevice: phy::Device>*/ EthHandler/*<PhyDevice>*/ {
-    pub fn new(
+    // XXX This has a lot of arguments. Maybe use a builder pattern or a macro?
+    pub unsafe fn new(
         channel: Channel,
         //phy_device: PhyDevice, 
+        tx_free_ptr: core::ptr::NonNull<RawRingBuffer>,
+        tx_used_ptr: core::ptr::NonNull<RawRingBuffer>,
         tx_bufs_ptr: core::ptr::NonNull<Bufs>,
+        rx_free_ptr: core::ptr::NonNull<RawRingBuffer>,
+        rx_used_ptr: core::ptr::NonNull<RawRingBuffer>,
         rx_bufs_ptr: core::ptr::NonNull<Bufs>,
     ) -> Self {
+        let tx_free = unsafe { RingBuffer::from_ptr(tx_free_ptr) };
+        let tx_used = unsafe { RingBuffer::from_ptr(tx_used_ptr) };
+        let rx_free = unsafe { RingBuffer::from_ptr(rx_free_ptr) };
+        let rx_used = unsafe { RingBuffer::from_ptr(rx_used_ptr) };
+
+        let mut tx_ring = RingBuffers::new(tx_free, tx_used, (), true);
+        let mut rx_ring = RingBuffers::new(rx_free, rx_used, (), true);
+
+        for i in 0..TX_BUF_SIZE {
+            tx_ring.free_mut()
+                .enqueue(Descriptor::new(i, MTU as u32, 0))
+                .expect("Unable to enqueue to TX free ring");
+        }
+        for i in 0..RX_BUF_SIZE {
+            rx_ring.free_mut()
+                .enqueue(Descriptor::new(i, MTU as u32, 0))
+                .expect("Unable to enqueue to RX free ring");
+        }
+
         let tx_bufs = unsafe { ExternallySharedRef::<'static, Bufs>::new(tx_bufs_ptr) };
         let rx_bufs = unsafe { ExternallySharedRef::<'static, Bufs>::new(rx_bufs_ptr) };
 
         Self {
             channel,
             //phy_device,
-            tx_ring: RingBuffer::<TxReadyMsg, TX_BUF_SIZE>::empty(),
+            tx_ring,
             tx_bufs,
-            rx_ring: RingBuffer::<usize, RX_BUF_SIZE>::from_iter(0..RX_BUF_SIZE),
+            rx_ring,
             rx_bufs,
         }
     }
@@ -68,68 +88,55 @@ impl/*<PhyDevice: phy::Device>*/ EthHandler/*<PhyDevice>*/ {
 impl/*<PhyDevice: phy::Device>*/ Handler for EthHandler/*<PhyDevice>*/ {
     type Error = !;
 
-    //fn notified(&mut self, channel: Channel) -> Result<(), Self::Error> {
-    //    todo!()
-    //}
+    fn notified(&mut self, channel: Channel) -> Result<(), Self::Error> {
+        if channel == self.channel {
+            match self.tx_ring.used_mut().dequeue() { // TODO We could send more than one frame here...
+                Ok(tx_desc) => {
+                    // Try to loop the packet back to the client
+                    match self.rx_ring.free_mut().dequeue() {
+                        Ok(rx_desc) => {
+                            let tx_buf = self.tx_bufs.as_ptr().index(tx_desc.encoded_addr()).read();
+                            let rx_buf_ptr = self.rx_bufs.as_mut_ptr().index(rx_desc.encoded_addr());
 
-    fn protected(&mut self, channel: Channel, msg_info: MessageInfo) -> Result<MessageInfo, Self::Error> {
-        Ok(if channel == self.channel {
-            match msg_info.label().try_into().ok() {
-                Some(ClientTag::TxReady) => match msg_info.recv() {
-                    Ok(TxReadyMsg { index: tx_index, length }) => {
-                        match self.rx_ring.take() {
-                            Some(rx_index) => {
-                                let buf = self.tx_bufs.as_ptr().index(tx_index).read();
+                            rx_buf_ptr.write(tx_buf);
 
-                                self.rx_bufs.as_mut_ptr().index(rx_index).write(buf);
-                                self.channel.pp_call(
-                                    MessageInfo::send(ServerTag::RxReady, RxReadyMsg { index: rx_index, length }),
-                                );
-
-                                MessageInfo::send(ServerTag::TxDone, TxDoneMsg { index: tx_index })
-                            }
-                            // TODO RX buffer is full; return a nice error here
-                            None => MessageInfo::send(StatusMessageLabel::Error, NoMessageValue),
+                            let _ = self.rx_ring.used_mut().enqueue(Descriptor::new(rx_desc.encoded_addr(), tx_desc.len(), 0));
                         }
+                        Err(_) => debug_print!("Failed to loop back; RX buffer is full"),
                     }
-                    Err(_) => MessageInfo::send(StatusMessageLabel::Error, NoMessageValue),
-                }
-                Some(ClientTag::RxDone) => match msg_info.recv() {
-                    Ok(RxDoneMsg { index }) => {
-                        self.rx_ring.put(index); // XXX What if the index is wrong?
 
-                        MessageInfo::send(StatusMessageLabel::Ok, NoMessageValue)
-                    }
-                    Err(_) => MessageInfo::send(StatusMessageLabel::Error, NoMessageValue),
+                    // Free the TX buffer
+                    let _ = self.tx_ring.free_mut().enqueue(Descriptor::new(tx_desc.encoded_addr(), MTU as u32, 0));
                 }
-                None => panic!("Received incorrectly formatted message from client"),
+                Err(_) => debug_print!("Driver notified, but TX buffer is empty"),
             }
         } else {
-            sel4cp::debug_print!("channel = {:?}\n", self.channel);
-            unreachable!()
-        })
+            unreachable!();
+        }
+
+        Ok(())
     }
 }
 
 pub struct EthDevice {
     channel: Channel,
-    pub tx_ring: RingBuffer<usize, TX_BUF_SIZE>,
+    tx_ring: RingBuffers<'static, ()>,
     tx_bufs: ExternallySharedRef<'static, Bufs, ReadWrite>,
-    pub rx_ring: RingBuffer<RxReadyMsg, RX_BUF_SIZE>,
+    rx_ring: RingBuffers<'static, ()>,
     rx_bufs: ExternallySharedRef<'static, Bufs, ReadWrite>,
 }
 
-#[macro_export]
-macro_rules! new_eth_device {
-    ($channel: ident, $tx_buf_symbol: ident, $rx_buf_symbol: ident) => {
-        {
-            let tx_bufs_ptr = memory_region_symbol!($tx_buf_symbol: *mut [$crate::Buf], n = $crate::TX_BUF_SIZE);
-            let rx_bufs_ptr = memory_region_symbol!($rx_buf_symbol: *mut [$crate::Buf], n = $crate::RX_BUF_SIZE);
-            
-            $crate::EthDevice::new($channel, tx_bufs_ptr, rx_bufs_ptr)
-        }
-    }
-}
+//#[macro_export]
+//macro_rules! new_eth_device {
+//    ($channel: ident, $tx_buf_symbol: ident, $rx_buf_symbol: ident) => {
+//        {
+//            let tx_bufs_ptr = memory_region_symbol!($tx_buf_symbol: *mut [$crate::Buf], n = $crate::TX_BUF_SIZE);
+//            let rx_bufs_ptr = memory_region_symbol!($rx_buf_symbol: *mut [$crate::Buf], n = $crate::RX_BUF_SIZE);
+//            
+//            $crate::EthDevice::new($channel, tx_bufs_ptr, rx_bufs_ptr)
+//        }
+//    }
+//}
 
 impl EthDevice {
     /// Constructor requiring pointers to the respective buffers.
@@ -148,145 +155,108 @@ impl EthDevice {
     ///       bytes (resp. `my_rx_buf_symbol`)
     pub fn new(
         channel: Channel,
+        tx_free_ptr: core::ptr::NonNull<RawRingBuffer>,
+        tx_used_ptr: core::ptr::NonNull<RawRingBuffer>,
         tx_bufs_ptr: core::ptr::NonNull<Bufs>,
+        rx_free_ptr: core::ptr::NonNull<RawRingBuffer>,
+        rx_used_ptr: core::ptr::NonNull<RawRingBuffer>,
         rx_bufs_ptr: core::ptr::NonNull<Bufs>,
     ) -> Self {
+        let tx_free = unsafe { RingBuffer::from_ptr(tx_free_ptr) };
+        let tx_used = unsafe { RingBuffer::from_ptr(tx_used_ptr) };
+        let rx_free = unsafe { RingBuffer::from_ptr(rx_free_ptr) };
+        let rx_used = unsafe { RingBuffer::from_ptr(rx_used_ptr) };
+
+        let tx_ring = RingBuffers::new(tx_free, tx_used, (), false);
+        let rx_ring = RingBuffers::new(rx_free, rx_used, (), false);
+
         let tx_bufs = unsafe { ExternallySharedRef::<'static, Bufs>::new(tx_bufs_ptr) };
         let rx_bufs = unsafe { ExternallySharedRef::<'static, Bufs>::new(rx_bufs_ptr) };
 
         Self {
             channel,
-            tx_ring: RingBuffer::<usize, TX_BUF_SIZE>::from_iter(0..TX_BUF_SIZE),
+            tx_ring,
             tx_bufs,
-            rx_ring: RingBuffer::<RxReadyMsg, RX_BUF_SIZE>::empty(),
+            rx_ring,
             rx_bufs,
-        }
-    }
-
-    /// Handles ServerTag Receive frames and put them into the ring buffer.
-    ///
-    /// To be called in the client's [`Handler::protected`] function, after ensuring that the channel
-    /// is the one shared with the `eth_driver` component.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// fn protected(&mut self, channel: Channel, msg_info: MessageInfo) -> Result<MessageInfo, Self::Error> {
-    ///     Ok(match channel {
-    ///         DRIVER => my_phy_driver.server_tag_handler(msg_info),
-    ///         // Handle other channels...
-    ///         None => unreachable!(),
-    ///     })
-    /// }
-    /// ```
-    pub fn server_tag_handler(&mut self, msg_info: MessageInfo) -> MessageInfo {
-        match msg_info.label().try_into().ok() {
-            Some(ServerTag::RxReady) => match msg_info.recv() {
-                Ok(RxReadyMsg { index, length }) => {
-                    self.rx_ring.put(RxReadyMsg { index, length });
-
-                    MessageInfo::send(StatusMessageLabel::Ok, NoMessageValue)
-                }
-                Err(_) => MessageInfo::send(StatusMessageLabel::Error, NoMessageValue),
-            }
-            Some(ServerTag::TxDone) => match msg_info.recv() {
-                Ok(TxDoneMsg { index }) => {
-                    self.tx_ring.put(index); // XXX What if the index is wrong?
-
-                    MessageInfo::send(StatusMessageLabel::Ok, NoMessageValue)
-                }
-                Err(_) => MessageInfo::send(StatusMessageLabel::Error, NoMessageValue),
-            }
-            None => MessageInfo::send(StatusMessageLabel::Error, NoMessageValue),
         }
     }
 }
 
 pub struct TxToken<'a> {
-    index: usize,
     buf: ExternallySharedPtr<'a, Buf, ReadWrite>,
     channel: Channel
 }
 
+// TODO Implement Drop to put the buffer back
+
 impl<'a> phy::TxToken for TxToken<'a> {
     fn consume<R, F: FnOnce(&mut [u8]) -> R>(self, length: usize, f: F) -> R {
-        debug_assert!(length <= MTU);
-
         let mut buf = [0; MTU];
         let res = f(&mut buf);
         self.buf.write(buf);
 
-        self.channel.pp_call(MessageInfo::send(
-            ClientTag::TxReady,
-            TxReadyMsg {
-                index: self.index,
-                length,
-            },
-        ));
+        self.channel.notify();
 
         res
     }
 }
 
-pub struct RxToken<'a> {
-    index: usize,
-    length: usize,
-    buf: ExternallySharedPtr<'a, Buf, ReadOnly>,
-    channel: Channel
+pub struct RxToken {
+    desc: Descriptor,
+    buf: [u8; MTU],
 }
 
-impl<'a> phy::RxToken for RxToken<'a> {
-    fn consume<R, F: FnOnce(&mut [u8]) -> R>(self, f: F) -> R {
-        let mut buf = self.buf.read();
-        let res = f(&mut buf[0..self.length]);
+// TODO Implement Drop to put the buffer back
 
-        self.channel.pp_call(MessageInfo::send(
-            ClientTag::RxDone,
-            RxDoneMsg {
-                index: self.index,
-            },
-        ));
-
-        res
+impl phy::RxToken for RxToken {
+    fn consume<R, F: FnOnce(&mut [u8]) -> R>(mut self, f: F) -> R {
+        f(&mut self.buf[0..self.desc.len() as usize])
     }
 }
 
 impl phy::Device for EthDevice {
     type TxToken<'a> = TxToken<'a>;
-    type RxToken<'a> = RxToken<'a>;
+    type RxToken<'a> = RxToken;
 
-    fn receive(&mut self, _timestamp: Instant) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
-        let rx_ready = self.rx_ring.take()?;
-        let tx_index = self.tx_ring.take()?; // XXX Handle the case where rx is non-empty, but tx
-                                             // is full; not important now, since RX_BUF_SIZE =
-                                             // TX_BUF_SIZE
+    fn receive(&mut self, timestamp: Instant) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
+        // Ensure we don't take a TX buffer if there's nothing to receive
+        if self.rx_ring.used().is_empty() {
+            return None;
+        }
 
-        let rx_buf = self.rx_bufs.as_ptr().index(rx_ready.index);
-        let tx_buf = self.tx_bufs.as_mut_ptr().index(tx_index);
+        let rx_desc = self.rx_ring.used_mut().dequeue().ok()?; // Should succeed; we just checked
+
+        // Copy the buffer and put it back. This avoids needing to notify on read.
+        // XXX Can we do this without copying? Without protected calls?
+        let rx_buf = self.rx_bufs
+            .as_ptr()
+            .index(rx_desc.encoded_addr())
+            .read();
+        let _ = self.rx_ring.free_mut().enqueue(Descriptor::new(rx_desc.encoded_addr(), MTU as u32, 0));
+
+        let tx_token = self.transmit(timestamp)?;
 
         Some((
             Self::RxToken {
-                index: rx_ready.index,
-                length: rx_ready.length,
+                desc: rx_desc,
                 buf: rx_buf,
-                channel: self.channel,
             },
-            Self::TxToken {
-                index: tx_index,
-                buf: tx_buf,
-                channel: self.channel,
-            },
+            tx_token,
         ))
     }
 
     fn transmit(&mut self, _timestamp: Instant) -> Option<Self::TxToken<'_>> {
-        let index = self.tx_ring.take()?;
+        let desc = self.tx_ring.free_mut().dequeue().ok()?;
+        let buf = self.tx_bufs.as_mut_ptr().index(desc.encoded_addr());
 
-        let tx_buf = self.tx_bufs.as_mut_ptr().index(index);
+        // Place the buffer to be written into the used ring; the driver won't be notified
+        // until we call `consume`.
+        // XXX How can we set the length?
+        let _ = self.tx_ring.used_mut().enqueue(Descriptor::new(desc.encoded_addr(), MTU as u32, 0));
 
         Some(Self::TxToken {
-            index,
-            buf: tx_buf,
+            buf,
             channel: self.channel,
         })
     }
@@ -305,46 +275,4 @@ impl phy::Device for EthDevice {
 
         caps
     }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
-#[cfg_attr(target_pointer_width = "32", repr(u32))]
-#[cfg_attr(target_pointer_width = "64", repr(u64))]
-pub enum ClientTag {
-    TxReady,
-    RxDone,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Default, AsBytes, FromBytes)]
-#[repr(C)]
-pub struct TxReadyMsg {
-    pub index: usize,
-    pub length: usize,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Default, AsBytes, FromBytes)]
-#[repr(C)]
-pub struct RxDoneMsg {
-    pub index: usize,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
-#[cfg_attr(target_pointer_width = "32", repr(u32))]
-#[cfg_attr(target_pointer_width = "64", repr(u64))]
-pub enum ServerTag {
-    RxReady,
-    TxDone,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Default, AsBytes, FromBytes)]
-#[repr(C)]
-pub struct RxReadyMsg {
-    pub index: usize,
-    pub length: usize,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Default, AsBytes, FromBytes)]
-#[repr(C)]
-pub struct TxDoneMsg {
-    pub index: usize,
 }
