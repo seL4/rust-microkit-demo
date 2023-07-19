@@ -1135,6 +1135,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "497961ef93d974e23eb6f433eb5fe1b7930b659f06d12dec6fc44a8f554c0bba"
 
 [[package]]
+name = "uart-driver"
+version = "0.1.0"
+dependencies = [
+ "embedded-hal",
+ "heapless",
+ "nb 1.1.0",
+ "sel4cp",
+ "tock-registers",
+ "uart-interface-types",
+]
+
+[[package]]
 name = "uart-interface-types"
 version = "0.1.0"
 dependencies = [

@@ -2,10 +2,12 @@
 
 resolver = "2"
 
+# we need to list *all* crates here
 members = [
     "crates/artist",
     "crates/assistant",
     "crates/pl011-driver",
+    "crates/uart-driver",
     "crates/uart-interface-types",
     "crates/eth-driver",
     "crates/eth-client",
