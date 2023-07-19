@@ -19,7 +19,6 @@ crates := \
 	banscii-artist \
 	banscii-assistant \
 	uart-driver \
-	uart-interface-types \
 	eth-driver \
 	eth-client
 endif
