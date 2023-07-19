@@ -9,7 +9,6 @@ crates := \
 	banscii-artist \
 	banscii-assistant \
 	banscii-pl011-driver \
-	uart-interface-types \
 	eth-driver \
 	eth-client
 else

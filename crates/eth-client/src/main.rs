@@ -3,7 +3,6 @@
 #![feature(never_type)]
 
 use sel4cp::{protection_domain, memory_region_symbol, Channel, Handler};
-use sel4cp::message::{MessageInfo};
 use sel4cp::debug_print;
 
 use smoltcp::phy::{Device, TxToken, RxToken};

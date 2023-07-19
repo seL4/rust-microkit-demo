@@ -2,7 +2,7 @@
 #![no_main]
 #![feature(never_type)]
 
-use sel4cp::{protection_domain, memory_region_symbol, Channel, Handler};
+use sel4cp::{protection_domain, memory_region_symbol, Channel};
 #[allow(unused_imports)]
 use eth_driver_interface as interface;
 

@@ -119,7 +119,7 @@ impl/*<PhyDevice: phy::Device>*/ Handler for EthHandler/*<PhyDevice>*/ {
                             };
 
                             rx_buf_mut.clear();
-                            rx_buf_mut.extend_from_slice(&tx_buf);
+                            let _ = rx_buf_mut.extend_from_slice(&tx_buf);
 
                             let _ = self.rx_ring.used_mut().enqueue(Descriptor::new(rx_desc.encoded_addr(), MTU as u32, 0));
                         }
@@ -209,8 +209,8 @@ impl<'a> phy::TxToken for TxToken<'a> {
         // XXX Can we do this withoug the unsafe?
         let buf_mut = unsafe { self.buf.as_raw_ptr().as_mut() };
         buf_mut.clear();
-        buf_mut.extend_from_slice(&buf);
-        buf_mut.resize(length, 0);
+        let _ = buf_mut.extend_from_slice(&buf);
+        let _ = buf_mut.resize(length, 0);
 
         self.channel.notify();
 
