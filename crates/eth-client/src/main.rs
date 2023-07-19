@@ -5,7 +5,6 @@
 use sel4cp::{protection_domain, memory_region_symbol, Channel, Handler};
 use sel4cp::message::{MessageInfo};
 use sel4cp::debug_print;
-use sel4_shared_ring_buffer::RawRingBuffer;
 
 use smoltcp::phy::{Device, TxToken, RxToken};
 use smoltcp::time::Instant;
@@ -21,11 +20,11 @@ fn init() -> ThisHandler {
     let device = unsafe {
         interface::EthDevice::new(
             DRIVER,
-            memory_region_symbol!(tx_free_region_start: *mut RawRingBuffer),
-            memory_region_symbol!(tx_used_region_start: *mut RawRingBuffer),
+            memory_region_symbol!(tx_free_region_start: *mut interface::RawRingBuffer),
+            memory_region_symbol!(tx_used_region_start: *mut interface::RawRingBuffer),
             memory_region_symbol!(tx_buf_region_start: *mut [interface::Buf], n = interface::TX_BUF_SIZE),
-            memory_region_symbol!(rx_free_region_start: *mut RawRingBuffer),
-            memory_region_symbol!(rx_used_region_start: *mut RawRingBuffer),
+            memory_region_symbol!(rx_free_region_start: *mut interface::RawRingBuffer),
+            memory_region_symbol!(rx_used_region_start: *mut interface::RawRingBuffer),
             memory_region_symbol!(rx_buf_region_start: *mut [interface::Buf], n = interface::RX_BUF_SIZE),
         )
     };
@@ -50,8 +49,8 @@ impl Handler for ThisHandler {
                 match self.device.transmit(Instant::from_millis(100)) {
                     None => debug_print!("Didn't get a TX token\n"),
                     Some(tx) => {
-                        debug_print!("Got a TX token\nSending some data: 42\n");
-                        tx.consume(1, |buffer| buffer[0] = 42)
+                        debug_print!("Got a TX token\nSending some data: PING\n");
+                        tx.consume(4, |buffer| buffer.copy_from_slice("PING".as_ref()))
                     }
                 }
                 loop {
@@ -59,7 +58,7 @@ impl Handler for ThisHandler {
                         None => continue,
                         Some((rx, _tx)) => {
                             debug_print!("Got an RX token\n");
-                            rx.consume(|buffer| debug_print!("RX token contains: {}\n", buffer[0]));
+                            rx.consume(|buffer| debug_print!("RX token contains: {}\n", core::str::from_utf8(buffer).unwrap()));
                             break;
                         }
                     }

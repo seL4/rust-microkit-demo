@@ -261,6 +261,7 @@ dependencies = [
 name = "eth-driver-interface"
 version = "0.1.0"
 dependencies = [
+ "heapless",
  "sel4-shared-ring-buffer",
  "sel4cp",
  "smoltcp",

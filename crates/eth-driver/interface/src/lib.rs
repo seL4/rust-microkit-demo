@@ -3,8 +3,11 @@
 
 use sel4cp::{Channel, Handler, debug_print};
 use sel4cp::memory_region::{ExternallySharedRef, ExternallySharedPtr, ReadWrite};
-use sel4_shared_ring_buffer::{RingBuffers, RingBuffer, RawRingBuffer, Descriptor};
+use sel4_shared_ring_buffer::{RingBuffers, RingBuffer, Descriptor};
 use smoltcp::{phy, time::Instant};
+
+pub use sel4_shared_ring_buffer::RawRingBuffer;
+pub use heapless::Vec;
 
 // Assuming a fixed (standard) MTU for now.
 // TODO Revisit once we know more about hardware.
@@ -15,7 +18,7 @@ pub const TX_BUF_SIZE: usize = 8;
 /// Number of buffers available for receiving frames. Set to an arbitrary value for now.
 pub const RX_BUF_SIZE: usize = 8;
 
-pub type Buf = [u8; MTU];
+pub type Buf = heapless::Vec<u8, MTU>;
 pub type Bufs = [Buf];
 
 pub struct EthHandler/*<PhyDevice>*/ {
@@ -26,18 +29,6 @@ pub struct EthHandler/*<PhyDevice>*/ {
     rx_ring: RingBuffers<'static, ()>,
     rx_bufs: ExternallySharedRef<'static, Bufs, ReadWrite>,
 }
-
-//#[macro_export]
-//macro_rules! new_eth_handler {
-//    ($channel: ident, $tx_buf_symbol: ident, $rx_buf_symbol: ident) => {
-//        {
-//            let tx_bufs_ptr = memory_region_symbol!($tx_buf_symbol: *mut [$crate::Buf], n = $crate::TX_BUF_SIZE);
-//            let rx_bufs_ptr = memory_region_symbol!($rx_buf_symbol: *mut [$crate::Buf], n = $crate::RX_BUF_SIZE);
-//            
-//            $crate::EthHandler::new($channel, tx_bufs_ptr, rx_bufs_ptr)
-//        }
-//    }
-//}
 
 impl/*<PhyDevice: phy::Device>*/ EthHandler/*<PhyDevice>*/ {
     // XXX This has a lot of arguments. Maybe use a builder pattern or a macro?
@@ -73,6 +64,21 @@ impl/*<PhyDevice: phy::Device>*/ EthHandler/*<PhyDevice>*/ {
         let tx_bufs = unsafe { ExternallySharedRef::<'static, Bufs>::new(tx_bufs_ptr) };
         let rx_bufs = unsafe { ExternallySharedRef::<'static, Bufs>::new(rx_bufs_ptr) };
 
+        for i in 0..TX_BUF_SIZE {
+            tx_bufs.as_ptr()
+                .index(i)
+                .as_raw_ptr()
+                .as_mut()
+                .clear();
+        }
+        for i in 0..RX_BUF_SIZE {
+            rx_bufs.as_ptr()
+                .index(i)
+                .as_raw_ptr()
+                .as_mut()
+                .clear();
+        }
+
         Self {
             channel,
             //phy_device,
@@ -95,12 +101,27 @@ impl/*<PhyDevice: phy::Device>*/ Handler for EthHandler/*<PhyDevice>*/ {
                     // Try to loop the packet back to the client
                     match self.rx_ring.free_mut().dequeue() {
                         Ok(rx_desc) => {
-                            let tx_buf = self.tx_bufs.as_ptr().index(tx_desc.encoded_addr()).read();
-                            let rx_buf_ptr = self.rx_bufs.as_mut_ptr().index(rx_desc.encoded_addr());
+                            // XXX Can we do this withoug the unsafe?
+                            let tx_buf = unsafe {
+                                self.tx_bufs
+                                    .as_ptr()
+                                    .index(tx_desc.encoded_addr())
+                                    .as_raw_ptr()
+                                    .as_ref()
+                                    .clone()
+                            };
+                            let rx_buf_mut = unsafe {
+                                self.rx_bufs
+                                    .as_mut_ptr()
+                                    .index(rx_desc.encoded_addr())
+                                    .as_raw_ptr()
+                                    .as_mut()
+                            };
 
-                            rx_buf_ptr.write(tx_buf);
+                            rx_buf_mut.clear();
+                            rx_buf_mut.extend_from_slice(&tx_buf);
 
-                            let _ = self.rx_ring.used_mut().enqueue(Descriptor::new(rx_desc.encoded_addr(), tx_desc.len(), 0));
+                            let _ = self.rx_ring.used_mut().enqueue(Descriptor::new(rx_desc.encoded_addr(), MTU as u32, 0));
                         }
                         Err(_) => debug_print!("Failed to loop back; RX buffer is full"),
                     }
@@ -125,18 +146,6 @@ pub struct EthDevice {
     rx_ring: RingBuffers<'static, ()>,
     rx_bufs: ExternallySharedRef<'static, Bufs, ReadWrite>,
 }
-
-//#[macro_export]
-//macro_rules! new_eth_device {
-//    ($channel: ident, $tx_buf_symbol: ident, $rx_buf_symbol: ident) => {
-//        {
-//            let tx_bufs_ptr = memory_region_symbol!($tx_buf_symbol: *mut [$crate::Buf], n = $crate::TX_BUF_SIZE);
-//            let rx_bufs_ptr = memory_region_symbol!($rx_buf_symbol: *mut [$crate::Buf], n = $crate::RX_BUF_SIZE);
-//            
-//            $crate::EthDevice::new($channel, tx_bufs_ptr, rx_bufs_ptr)
-//        }
-//    }
-//}
 
 impl EthDevice {
     /// Constructor requiring pointers to the respective buffers.
@@ -192,9 +201,16 @@ pub struct TxToken<'a> {
 
 impl<'a> phy::TxToken for TxToken<'a> {
     fn consume<R, F: FnOnce(&mut [u8]) -> R>(self, length: usize, f: F) -> R {
-        let mut buf = [0; MTU];
+        let mut buf = Buf::default();
+
+        buf.extend(core::iter::repeat(0).take(length));
         let res = f(&mut buf);
-        self.buf.write(buf);
+
+        // XXX Can we do this withoug the unsafe?
+        let buf_mut = unsafe { self.buf.as_raw_ptr().as_mut() };
+        buf_mut.clear();
+        buf_mut.extend_from_slice(&buf);
+        buf_mut.resize(length, 0);
 
         self.channel.notify();
 
@@ -203,15 +219,14 @@ impl<'a> phy::TxToken for TxToken<'a> {
 }
 
 pub struct RxToken {
-    desc: Descriptor,
-    buf: [u8; MTU],
+    buf: Buf,
 }
 
 // TODO Implement Drop to put the buffer back
 
 impl phy::RxToken for RxToken {
     fn consume<R, F: FnOnce(&mut [u8]) -> R>(mut self, f: F) -> R {
-        f(&mut self.buf[0..self.desc.len() as usize])
+        f(&mut self.buf)
     }
 }
 
@@ -229,17 +244,21 @@ impl phy::Device for EthDevice {
 
         // Copy the buffer and put it back. This avoids needing to notify on read.
         // XXX Can we do this without copying? Without protected calls?
-        let rx_buf = self.rx_bufs
-            .as_ptr()
-            .index(rx_desc.encoded_addr())
-            .read();
+        // XXX Can we do this withoug the unsafe?
+        let rx_buf = unsafe {
+            self.rx_bufs
+                .as_ptr()
+                .index(rx_desc.encoded_addr())
+                .as_raw_ptr()
+                .as_ref()
+                .clone()
+        };
         let _ = self.rx_ring.free_mut().enqueue(Descriptor::new(rx_desc.encoded_addr(), MTU as u32, 0));
 
         let tx_token = self.transmit(timestamp)?;
 
         Some((
             Self::RxToken {
-                desc: rx_desc,
                 buf: rx_buf,
             },
             tx_token,

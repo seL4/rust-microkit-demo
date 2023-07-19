@@ -10,3 +10,4 @@ sel4cp.workspace = true
 sel4-shared-ring-buffer.workspace = true
 
 smoltcp = { version = "0.10.0", default-features = false, features = ["proto-ipv4","medium-ethernet","socket-raw"] }
+heapless = "0.7.16"
