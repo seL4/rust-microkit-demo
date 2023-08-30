@@ -10,9 +10,8 @@ use sel4_externally_shared::{
     access::{ReadOnly, ReadWrite},
     ExternallySharedRef,
 };
-use sel4cp::memory_region::memory_region_symbol;
-use sel4cp::message::{MessageInfo, NoMessageValue, StatusMessageLabel};
-use sel4cp::{protection_domain, Channel, Handler};
+use sel4cp::{memory_region_symbol, protection_domain, Channel, Handler, MessageInfo};
+use sel4cp_message::MessageInfoExt as _;
 
 use banscii_artist_interface_types::*;
 
@@ -59,14 +58,14 @@ impl Handler for HandlerImpl {
         msg_info: MessageInfo,
     ) -> Result<MessageInfo, Self::Error> {
         Ok(match channel {
-            ASSISTANT => match msg_info.recv::<Request>() {
-                Ok(msg) => {
-                    let draft_height = msg.height;
-                    let draft_width = msg.width;
+            ASSISTANT => match msg_info.recv_using_postcard::<Request>() {
+                Ok(req) => {
+                    let draft_height = req.height;
+                    let draft_width = req.width;
                     let draft = self
                         .region_in
                         .as_ptr()
-                        .index(msg.draft_start..msg.draft_start + msg.draft_size)
+                        .index(req.draft_start..req.draft_start + req.draft_size)
                         .copy_to_vec();
 
                     let masterpiece = Masterpiece::complete(draft_height, draft_width, &draft);
@@ -90,21 +89,19 @@ impl Handler for HandlerImpl {
                     self.region_out
                         .as_mut_ptr()
                         .index(signature_start..signature_end)
-                        .copy_from_slice(&signature);
+                        .copy_from_slice(signature);
 
-                    MessageInfo::send(
-                        StatusMessageLabel::Ok,
-                        Response {
-                            height: masterpiece.height,
-                            width: masterpiece.width,
-                            masterpiece_start,
-                            masterpiece_size,
-                            signature_start,
-                            signature_size,
-                        },
-                    )
+                    MessageInfo::send_using_postcard(Response {
+                        height: masterpiece.height,
+                        width: masterpiece.width,
+                        masterpiece_start,
+                        masterpiece_size,
+                        signature_start,
+                        signature_size,
+                    })
+                    .unwrap()
                 }
-                Err(_) => MessageInfo::send(StatusMessageLabel::Error, NoMessageValue),
+                Err(_) => MessageInfo::send_unspecified_error(),
             },
             _ => {
                 unreachable!()

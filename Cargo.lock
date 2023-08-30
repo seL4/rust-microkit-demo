@@ -43,14 +43,14 @@ dependencies = [
  "rsa",
  "sel4-externally-shared",
  "sel4cp",
+ "sel4cp-message",
 ]
 
 [[package]]
 name = "banscii-artist-interface-types"
 version = "0.1.0"
 dependencies = [
- "num_enum",
- "zerocopy",
+ "serde",
 ]
 
 [[package]]
@@ -63,6 +63,7 @@ dependencies = [
  "hex",
  "sel4-externally-shared",
  "sel4cp",
+ "sel4cp-message",
 ]
 
 [[package]]
@@ -82,6 +83,7 @@ dependencies = [
  "banscii-pl011-driver-interface-types",
  "heapless",
  "sel4cp",
+ "sel4cp-message",
 ]
 
 [[package]]
@@ -95,8 +97,7 @@ dependencies = [
 name = "banscii-pl011-driver-interface-types"
 version = "0.1.0"
 dependencies = [
- "num_enum",
- "zerocopy",
+ "serde",
 ]
 
 [[package]]
@@ -173,6 +174,12 @@ dependencies = [
  "libc",
  "libloading",
 ]
+
+[[package]]
+name = "cobs"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "67ba02a97a2bd10f4b59b25c7973101c79642302776489e030cd13cdab09ed15"
 
 [[package]]
 name = "const-oid"
@@ -555,6 +562,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "postcard"
+version = "1.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c9ee729232311d3cd113749948b689627618133b1c5012b77342c1950b25eaeb"
+dependencies = [
+ "cobs",
+ "serde",
+]
+
+[[package]]
 name = "ppv-lite86"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -698,7 +715,7 @@ checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
 [[package]]
 name = "sel4"
 version = "0.1.0"
-source = "git+https://github.com/coliasgroup/rust-seL4#3e29246946434da80ab549a006f0c7eee048d41e"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
 dependencies = [
  "cfg-if",
  "sel4-config",
@@ -708,7 +725,7 @@ dependencies = [
 [[package]]
 name = "sel4-bitfield-parser"
 version = "0.1.0"
-source = "git+https://github.com/coliasgroup/rust-seL4#3e29246946434da80ab549a006f0c7eee048d41e"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
 dependencies = [
  "pest",
  "pest_derive",
@@ -718,17 +735,17 @@ dependencies = [
 [[package]]
 name = "sel4-bitfield-types"
 version = "0.1.0"
-source = "git+https://github.com/coliasgroup/rust-seL4#3e29246946434da80ab549a006f0c7eee048d41e"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
 
 [[package]]
 name = "sel4-build-env"
 version = "0.1.0"
-source = "git+https://github.com/coliasgroup/rust-seL4#3e29246946434da80ab549a006f0c7eee048d41e"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
 
 [[package]]
 name = "sel4-config"
 version = "0.1.0"
-source = "git+https://github.com/coliasgroup/rust-seL4#3e29246946434da80ab549a006f0c7eee048d41e"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
 dependencies = [
  "sel4-config-macros",
 ]
@@ -736,7 +753,7 @@ dependencies = [
 [[package]]
 name = "sel4-config-data"
 version = "0.1.0"
-source = "git+https://github.com/coliasgroup/rust-seL4#3e29246946434da80ab549a006f0c7eee048d41e"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
 dependencies = [
  "lazy_static",
  "sel4-build-env",
@@ -747,7 +764,7 @@ dependencies = [
 [[package]]
 name = "sel4-config-generic-macro-impls"
 version = "0.1.0"
-source = "git+https://github.com/coliasgroup/rust-seL4#3e29246946434da80ab549a006f0c7eee048d41e"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
 dependencies = [
  "fallible-iterator",
  "proc-macro2",
@@ -759,7 +776,7 @@ dependencies = [
 [[package]]
 name = "sel4-config-generic-types"
 version = "0.1.0"
-source = "git+https://github.com/coliasgroup/rust-seL4#3e29246946434da80ab549a006f0c7eee048d41e"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
 dependencies = [
  "serde",
 ]
@@ -767,7 +784,7 @@ dependencies = [
 [[package]]
 name = "sel4-config-macros"
 version = "0.1.0"
-source = "git+https://github.com/coliasgroup/rust-seL4#3e29246946434da80ab549a006f0c7eee048d41e"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
 dependencies = [
  "sel4-config-data",
  "sel4-config-generic-macro-impls",
@@ -776,7 +793,7 @@ dependencies = [
 [[package]]
 name = "sel4-dlmalloc"
 version = "0.1.0"
-source = "git+https://github.com/coliasgroup/rust-seL4#3e29246946434da80ab549a006f0c7eee048d41e"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
 dependencies = [
  "dlmalloc",
  "sel4-sync",
@@ -785,37 +802,38 @@ dependencies = [
 [[package]]
 name = "sel4-externally-shared"
 version = "0.1.0"
-source = "git+https://github.com/coliasgroup/rust-seL4#3e29246946434da80ab549a006f0c7eee048d41e"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
 
 [[package]]
 name = "sel4-immediate-sync-once-cell"
 version = "0.1.0"
-source = "git+https://github.com/coliasgroup/rust-seL4#3e29246946434da80ab549a006f0c7eee048d41e"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
 
 [[package]]
 name = "sel4-immutable-cell"
 version = "0.1.0"
-source = "git+https://github.com/coliasgroup/rust-seL4#3e29246946434da80ab549a006f0c7eee048d41e"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
 
 [[package]]
 name = "sel4-panicking"
 version = "0.1.0"
-source = "git+https://github.com/coliasgroup/rust-seL4#3e29246946434da80ab549a006f0c7eee048d41e"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
 dependencies = [
  "cfg-if",
  "sel4-immediate-sync-once-cell",
  "sel4-panicking-env",
+ "unwinding",
 ]
 
 [[package]]
 name = "sel4-panicking-env"
 version = "0.1.0"
-source = "git+https://github.com/coliasgroup/rust-seL4#3e29246946434da80ab549a006f0c7eee048d41e"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
 
 [[package]]
 name = "sel4-reserve-tls-on-stack"
 version = "0.1.0"
-source = "git+https://github.com/coliasgroup/rust-seL4#3e29246946434da80ab549a006f0c7eee048d41e"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
 dependencies = [
  "cfg-if",
  "sel4",
@@ -824,7 +842,7 @@ dependencies = [
 [[package]]
 name = "sel4-runtime-common"
 version = "0.1.0"
-source = "git+https://github.com/coliasgroup/rust-seL4#3e29246946434da80ab549a006f0c7eee048d41e"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
 dependencies = [
  "cfg-if",
  "sel4-dlmalloc",
@@ -836,7 +854,7 @@ dependencies = [
 [[package]]
 name = "sel4-rustfmt-helper"
 version = "0.1.0"
-source = "git+https://github.com/coliasgroup/rust-seL4#3e29246946434da80ab549a006f0c7eee048d41e"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
 dependencies = [
  "which",
 ]
@@ -844,7 +862,7 @@ dependencies = [
 [[package]]
 name = "sel4-sync"
 version = "0.1.0"
-source = "git+https://github.com/coliasgroup/rust-seL4#3e29246946434da80ab549a006f0c7eee048d41e"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
 dependencies = [
  "sel4",
  "sel4-immediate-sync-once-cell",
@@ -853,7 +871,7 @@ dependencies = [
 [[package]]
 name = "sel4-sys"
 version = "0.1.0"
-source = "git+https://github.com/coliasgroup/rust-seL4#3e29246946434da80ab549a006f0c7eee048d41e"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
 dependencies = [
  "bindgen",
  "glob",
@@ -874,10 +892,9 @@ dependencies = [
 [[package]]
 name = "sel4cp"
 version = "0.1.0"
-source = "git+https://github.com/coliasgroup/rust-seL4#3e29246946434da80ab549a006f0c7eee048d41e"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
 dependencies = [
  "cfg-if",
- "num_enum",
  "sel4",
  "sel4-externally-shared",
  "sel4-immediate-sync-once-cell",
@@ -886,17 +903,37 @@ dependencies = [
  "sel4-panicking-env",
  "sel4-runtime-common",
  "sel4cp-macros",
- "zerocopy",
 ]
 
 [[package]]
 name = "sel4cp-macros"
 version = "0.1.0"
-source = "git+https://github.com/coliasgroup/rust-seL4#3e29246946434da80ab549a006f0c7eee048d41e"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
 dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "sel4cp-message"
+version = "0.1.0"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
+dependencies = [
+ "sel4cp",
+ "sel4cp-message-types",
+ "serde",
+]
+
+[[package]]
+name = "sel4cp-message-types"
+version = "0.1.0"
+source = "git+https://github.com/coliasgroup/rust-seL4#b5b54324f910cf44f0e896146abde8d7e27577d3"
+dependencies = [
+ "num_enum",
+ "postcard",
+ "serde",
+ "zerocopy",
 ]
 
 [[package]]
