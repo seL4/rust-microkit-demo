@@ -10,9 +10,13 @@ banscii-artist-interface-types = { path = "../artist/interface-types" }
 banscii-assistant-core = { path = "./core" }
 banscii-pl011-driver-interface-types = { path = "../pl011-driver/interface-types" }
 hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
-sel4cp = { git = "https://github.com/coliasgroup/rust-seL4", default-features = false, features = ["alloc"] }
-sel4cp-message = { git = "https://github.com/coliasgroup/rust-seL4" }
+sel4-microkit-message = { git = "https://github.com/coliasgroup/rust-sel4" }
 
 [dependencies.sel4-externally-shared]
-git = "https://github.com/coliasgroup/rust-seL4"
+git = "https://github.com/coliasgroup/rust-sel4"
 features = ["unstable", "alloc"]
+
+[dependencies.sel4-microkit]
+git = "https://github.com/coliasgroup/rust-sel4"
+default-features = false
+features = ["alloc"]

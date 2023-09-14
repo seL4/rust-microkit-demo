@@ -8,12 +8,16 @@ license = "BSD-2-Clause"
 [dependencies]
 banscii-artist-interface-types = { path = "./interface-types" }
 rsa = { version = "0.8.1", default-features = false, features = ["pem", "sha2"] }
-sel4cp = { git = "https://github.com/coliasgroup/rust-seL4", default-features = false, features = ["alloc"] }
-sel4cp-message = { git = "https://github.com/coliasgroup/rust-seL4" }
+sel4-microkit-message = { git = "https://github.com/coliasgroup/rust-sel4" }
 
 [dependencies.sel4-externally-shared]
-git = "https://github.com/coliasgroup/rust-seL4"
+git = "https://github.com/coliasgroup/rust-sel4"
 features = ["unstable", "alloc"]
+
+[dependencies.sel4-microkit]
+git = "https://github.com/coliasgroup/rust-sel4"
+default-features = false
+features = ["alloc"]
 
 [build-dependencies]
 rsa = "0.8.1"

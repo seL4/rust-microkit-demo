@@ -15,8 +15,8 @@ use sel4_externally_shared::{
     access::{ReadOnly, ReadWrite},
     ExternallySharedRef,
 };
-use sel4cp::{memory_region_symbol, protection_domain, Channel, Handler, MessageInfo};
-use sel4cp_message::MessageInfoExt as _;
+use sel4_microkit::{memory_region_symbol, protection_domain, Channel, Handler, MessageInfo};
+use sel4_microkit_message::MessageInfoExt as _;
 
 use banscii_artist_interface_types as artist;
 use banscii_assistant_core::Draft;

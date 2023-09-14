@@ -2,9 +2,9 @@ BUILD ?= build
 
 build_dir := $(BUILD)
 
-sel4cp_board := qemu_arm_virt
-sel4cp_config := debug
-sel4cp_sdk_config_dir := $(SEL4CP_SDK)/board/$(sel4cp_board)/$(sel4cp_config)
+microkit_board := qemu_arm_virt
+microkit_config := debug
+microkit_sdk_config_dir := $(MICROKIT_SDK)/board/$(microkit_board)/$(microkit_config)
 
 .PHONY: none
 none:
@@ -16,16 +16,16 @@ clean:
 ### Protection domains
 
 rust_target_path := support/targets
-rust_sel4cp_target := aarch64-sel4cp-minimal
+rust_microkit_target := aarch64-sel4-microkit-minimal
 target_dir := $(build_dir)/target
 
 common_env := \
-	SEL4_INCLUDE_DIRS=$(abspath $(sel4cp_sdk_config_dir)/include)
+	SEL4_INCLUDE_DIRS=$(abspath $(microkit_sdk_config_dir)/include)
 
 common_options := \
 	-Z build-std=core,alloc,compiler_builtins \
 	-Z build-std-features=compiler-builtins-mem \
-	--target $(rust_sel4cp_target) \
+	--target $(rust_microkit_target) \
 	--release \
 	--target-dir $(abspath $(target_dir)) \
 	--out-dir $(abspath $(build_dir))
@@ -62,11 +62,11 @@ system_description := banscii.system
 loader := $(build_dir)/loader.img
 
 $(loader): $(system_description) $(built_crates)
-	$(SEL4CP_SDK)/bin/sel4cp \
+	$(MICROKIT_SDK)/bin/microkit \
 		$< \
 		--search-path $(build_dir) \
-		--board $(sel4cp_board) \
-		--config $(sel4cp_config) \
+		--board $(microkit_board) \
+		--config $(microkit_config) \
 		-r $(build_dir)/report.txt \
 		-o $@
 
