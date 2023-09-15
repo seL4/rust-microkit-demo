@@ -1,21 +1,23 @@
 # Banscii
 
-This repository demonstrates the use of the [seL4 crates](https://github.com/seL4/rust-sel4) with the [seL4 Microkit](https://github.com/seL4/microkit).
+This repository demonstrates the use of the [seL4 crates](https://github.com/seL4/rust-sel4) with
+the [seL4 Microkit](https://github.com/seL4/microkit).
 
-Banksy has been struggling to keep up with the growing demand for his art.
-He has decided to leverage trustworthy operating system technology to scale up production without compromising the integrity or value of his work.
-A fleet of _Banscii_ devices will begin producing his art on his behalf.
-These devices will contain his most precious artistic secrets, along with cryptographic keys which will be used to authenticate the work they produce.
+Banksy has been struggling to keep up with the growing demand for his art. He has decided to
+leverage trustworthy operating system technology to scale up production without compromising the
+integrity or value of his work. A fleet of _Banscii_ devices will begin producing his art on his
+behalf. These devices will contain his most precious artistic secrets, along with cryptographic keys
+which will be used to authenticate the work they produce.
 
 The Banscii system is comprised of three components:
 
-- `pl011-driver` (untrusted):
-    Serial driver.
-- `assistant` (untrusted):
-    Interacts with the human operator with a text interface via `pl011-driver` to receive subject material and, in concert with `artist`, return authentic works of art.
-    `assistant` takes a subject (a string), renders it to greyscale ASCII art using a TrueType font, and then passes it to `artist` for completion.
-- `artist` (trusted):
-    Receives drafts from `assistant`, which it completes, digitally signs, and then returns as authentic Bansky pieces.
+- `pl011-driver` (untrusted): Serial driver.
+- `assistant` (untrusted): Interacts with the human operator with a text interface via
+    `pl011-driver` to receive subject material and, in concert with `artist`, return authentic works
+    of art. `assistant` takes a subject (a string), renders it to greyscale ASCII art using a
+    TrueType font, and then passes it to `artist` for completion.
+- `artist` (trusted): Receives drafts from `assistant`, which it completes, digitally signs, and
+    then returns as authentic Bansky pieces.
 
 ### Rustdoc for the `sel4-microkit` crate
 
