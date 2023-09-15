@@ -1,6 +1,6 @@
 # Banscii
 
-This repository demonstrates the use of the [seL4 crates](https://github.com/coliasgroup/rust-sel4) with the [seL4 Microkit](https://github.com/seL4/microkit).
+This repository demonstrates the use of the [seL4 crates](https://github.com/seL4/rust-sel4) with the [seL4 Microkit](https://github.com/seL4/microkit).
 
 Banksy has been struggling to keep up with the growing demand for his art.
 He has decided to leverage trustworthy operating system technology to scale up production without compromising the integrity or value of his work.
@@ -28,7 +28,7 @@ The only requirements for getting started are Git, Make, and Docker.
 First, clone this respository:
 
 ```
-git clone https://github.com/coliasgroup/rust-microkit-demo.git
+git clone https://github.com/seL4/rust-microkit-demo.git
 cd rust-microkit-demo
 ```
 
