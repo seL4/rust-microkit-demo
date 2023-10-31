@@ -1,3 +1,14 @@
+#
+# Copyright 2023, Colias Group, LLC
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+#
+# This file is generated from './Cargo.nix'. You can edit this file directly
+# if you are not using this project's Cargo manifest management tools.
+# See 'hacking/cargo-manifest-management/README.md' for more information.
+#
+
 [package]
 name = "banscii-assistant-core"
 version = "0.1.0"
@@ -6,6 +17,6 @@ edition = "2021"
 license = "BSD-2-Clause"
 
 [dependencies]
-libm = { version = "0.2.1", default-features = false }
+ab_glyph = { version = "0.2.22", default-features = false, features = ["libm"] }
 log = "0.4.17"
-rusttype = { version = "0.9.3", default-features = false, features = ["has-atomics", "libm-math"] }
+num-traits = { version = "0.2.16", default-features = false, features = ["libm"] }
