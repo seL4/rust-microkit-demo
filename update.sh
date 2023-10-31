@@ -9,6 +9,7 @@ cp $external_rust_seL4_dir/rust-toolchain.toml .
 cp $external_rust_seL4_dir/support/targets/aarch64-sel4-microkit-minimal.json support/targets
 rm -r crates
 cp -r $external_demo_dir crates
+find crates -name Cargo.nix -delete
 mv crates/pds/* crates/
 rmdir crates/pds
 mv crates/*.system .
@@ -18,4 +19,4 @@ subst='s,path = "\(../\)*../../../../\([^"]*\)",git = "https://github.com/seL4/r
 
 find crates -name Cargo.toml -exec sed -i "$subst" {} +
 
-cargo update -w -p sel4
+cargo update -w -p sel4-microkit
