@@ -8,7 +8,7 @@ BUILD ?= build
 
 build_dir := $(BUILD)
 
-microkit_board := qemu_arm_virt
+microkit_board := qemu_virt_aarch64
 microkit_config := debug
 microkit_sdk_config_dir := $(MICROKIT_SDK)/board/$(microkit_board)/$(microkit_config)
 
@@ -80,8 +80,7 @@ $(loader): $(system_description) $(built_crates)
 
 qemu_cmd := \
 	qemu-system-aarch64 \
-		-machine virt \
-		-cpu cortex-a53 -m size=1G \
+		-machine virt -cpu cortex-a53 -m size=2G \
 		-device loader,file=$(loader),addr=0x70000000,cpu-num=0 \
 		-serial mon:stdio \
 		-nographic
