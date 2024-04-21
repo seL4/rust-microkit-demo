@@ -20,26 +20,28 @@ RUN apt-get update -q && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 RUN set -eux; \
-    url="https://developer.arm.com/-/media/Files/downloads/gnu-a/10.2-2020.11/binrel/gcc-arm-10.2-2020.11-x86_64-aarch64-none-elf.tar.xz"; \
+    url="https://developer.arm.com/-/media/Files/downloads/gnu/12.2.rel1/binrel/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf.tar.xz"; \
     wget -nv "$url"; \
-    tar -xf gcc-arm-*.tar.xz; \
-    rm gcc-arm-*.tar.xz; \
-    mv gcc-arm-* /opt/gcc-aarch64-none-elf;
+    tar -xf arm-gnu-toolchain-*.tar.xz; \
+    rm arm-gnu-toolchain-*.tar.xz; \
+    mv arm-gnu-toolchain-* /opt/gcc-aarch64-none-elf;
 
 ENV PATH=/opt/gcc-aarch64-none-elf/bin:$PATH
 
 ENV MICROKIT_SDK_VERSION=1.2.6
 
-# branch: rust
-RUN git clone \
-        https://github.com/coliasgroup/microkit.git \
-        --branch keep/004e340a38d1ed7bf9d1a0223aff8475 \
-        --config advice.detachedHead=false
+RUN set -eux; \
+    git clone \
+        https://github.com/seL4/microkit.git \
+        --config advice.detachedHead=false; \
+    cd microkit; \
+    git checkout 35978315953532d3d2aca3faa82eda54d2a9172f;
 
+# TODO
 # branch: rust-microkit
 RUN git clone \
         https://github.com/coliasgroup/seL4.git \
-        --branch keep/7b8c552b36fe13b8a846b06a659c2369 \
+        --branch keep/1daabe63fd34ae3d348b8e4a4057bd1a \
         --config advice.detachedHead=false \
         microkit/seL4
 
