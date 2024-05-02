@@ -11,39 +11,39 @@ WORKDIR /tmp
 RUN rm -r *
 
 RUN apt-get update -q && apt-get install -y --no-install-recommends \
+    # for microkit
     python3-venv \
     musl-tools \
     pandoc \
     texlive-latex-base \
     texlive-latex-extra \
     texlive-fonts-recommended \
+    # for hacking
+    bash-completion man sudo \
     && rm -rf /var/lib/apt/lists/*
 
 RUN set -eux; \
     url="https://developer.arm.com/-/media/Files/downloads/gnu/12.2.rel1/binrel/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf.tar.xz"; \
-    wget -nv "$url"; \
-    tar -xf arm-gnu-toolchain-*.tar.xz; \
-    rm arm-gnu-toolchain-*.tar.xz; \
-    mv arm-gnu-toolchain-* /opt/gcc-aarch64-none-elf;
+    dst=/opt/gcc-aarch64-none-elf; \
+    mkdir -p $dst; \
+    curl -sSfL "$url" | tar -xJ -C $dst --strip-components=1;
 
 ENV PATH=/opt/gcc-aarch64-none-elf/bin:$PATH
 
 ENV MICROKIT_SDK_VERSION=1.2.6
+ENV MICROKIT_SDK=/opt/microkit/microkit-sdk-$MICROKIT_SDK_VERSION
 
 RUN set -eux; \
     git clone \
         https://github.com/seL4/microkit.git \
         --config advice.detachedHead=false; \
     cd microkit; \
-    git checkout 35978315953532d3d2aca3faa82eda54d2a9172f;
-
-# TODO
-# branch: rust-microkit
-RUN git clone \
-        https://github.com/coliasgroup/seL4.git \
-        --branch keep/1daabe63fd34ae3d348b8e4a4057bd1a \
-        --config advice.detachedHead=false \
-        microkit/seL4
+    git checkout f0939852c62c629346cd3eddbe7d8922eca8530a; \
+    git clone \
+        https://github.com/seL4/seL4.git \
+        --config advice.detachedHead=false; \
+    cd seL4; \
+    git checkout 57975d485397ce1744f7163644dd530560d0b7ec;
 
 RUN set -eux; \
     cd microkit; \
@@ -52,32 +52,40 @@ RUN set -eux; \
     ./pyenv/bin/pip install -r requirements.txt; \
     ./pyenv/bin/pip install sel4-deps; \
     ./pyenv/bin/python3 build_sdk.py --sel4 ./seL4; \
-    chmod a+rX release/microkit-sdk-$MICROKIT_SDK_VERSION/bin/microkit; \
-    mkdir /opt/microkit; \
-    mv release/microkit-sdk-$MICROKIT_SDK_VERSION /opt/microkit; \
+    mkdir $(dirname $MICROKIT_SDK); \
+    mv release/microkit-sdk-$MICROKIT_SDK_VERSION $MICROKIT_SDK; \
     rm -rf $HOME/.cache/pyoxidizer; \
-    cd ..; \
-    rm -rf microkit;
-
-ENV MICROKIT_SDK=/opt/microkit/microkit-sdk-$MICROKIT_SDK_VERSION
+    rm -rf $(pwd);
 
 ARG UID
 ARG GID
 
 RUN set -eux; \
-    if ! getent group $GID; then \
-        groupadd -g $GID x; \
-    fi; \
-    if ! getent passwd $UID; then \
-        useradd -u $UID -g $GID -G sudo -m -p x x; \
+    if [ $UID -eq 0 ]; then \
+        if [ $GID -ne 0 ]; then \
+            echo "error: \$UID == 0 but \$GID != 0" >&2; \
+            exit 1; \
+        fi; \
+    else \
+        if getent passwd $UID; then \
+            echo "error: \$UID $UID already exists" >&2; \
+            exit 1; \
+        fi; \
+        if ! getent group $GID; then \
+            groupadd --gid $GID x; \
+        fi; \
+        useradd --uid $UID --gid $GID --groups sudo --create-home x; \
     fi;
 
-RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers # for convenience
+RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
-USER $UID:$GID
+USER $UID
 
-RUN curl -sSf https://sh.rustup.rs | \
-        bash -s -- -y --no-modify-path --default-toolchain none
+RUN set -eux; \
+    if [ $UID -ne 0 ]; then \
+        curl -sSf https://sh.rustup.rs | \
+            bash -s -- -y --no-modify-path --default-toolchain none; \
+    fi;
 
 ENV PATH=/home/x/.cargo/bin:$PATH
 

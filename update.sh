@@ -21,7 +21,6 @@ rmdir crates/pds
 mv crates/*.system .
 
 subst='s,path = "\(../\)*../../../../\([^"]*\)",git = "https://github.com/seL4/rust-sel4",g' \
-# subst='s,path = "\(../\)*../../../../\([^"]*\)",path = "/rust-sel4/crates/\2",g' \
 
 find crates -name Cargo.toml -exec sed -i "$subst" {} +
 
