@@ -11,5 +11,5 @@ resolver = "2"
 members = [
     "crates/artist",
     "crates/assistant",
-    "crates/pl011-driver",
+    "crates/serial-driver",
 ]

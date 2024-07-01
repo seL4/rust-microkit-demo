@@ -5,17 +5,21 @@
 #
 
 BUILD ?= build
+BOARD ?= qemu_virt_aarch64
 
-build_dir := $(BUILD)
+build_dir := $(BUILD)/$(BOARD)
 
 .PHONY: none
 none:
 
 .PHONY: clean
 clean:
-	rm -rf $(build_dir)
+	rm -rf $(BUILD)
 
-microkit_board := qemu_virt_aarch64
+$(build_dir):
+	mkdir -p $@
+
+microkit_board := $(BOARD)
 microkit_config := debug
 microkit_sdk_config_dir := $(MICROKIT_SDK)/board/$(microkit_board)/$(microkit_config)
 
@@ -39,14 +43,17 @@ $(crate).intermediate:
 			--out-dir $(build_dir) \
 			--target aarch64-sel4-microkit-minimal \
 			--release \
-			-p $(1)
+			-p $(1) \
+			$(extra-flags-$(1))
 
 endef
 
 crate_names := \
 	banscii-artist \
 	banscii-assistant \
-	banscii-pl011-driver
+	banscii-serial-driver
+
+extra-flags-banscii-serial-driver := --features board-$(microkit_board)
 
 crates := $(foreach crate_name,$(crate_names),$(call crate,$(crate_name)))
 
@@ -54,7 +61,12 @@ $(eval $(foreach crate_name,$(crate_names),$(call build_crate,$(crate_name))))
 
 ### Loader
 
-system_description := banscii.system
+system_description_template := banscii.system.template
+
+system_description := $(build_dir)/banscii.system
+
+$(system_description): generate_system_description.py $(system_description_template) | $(build_dir)
+	python3 $< --template $(system_description_template) --board $(BOARD) -o $@
 
 loader := $(build_dir)/loader.img
 
@@ -67,11 +79,16 @@ $(loader): $(system_description) $(crates)
 		-r $(build_dir)/report.txt \
 		-o $@
 
+.PHONY: build
+build: $(loader)
+
 ### Run
+
+ifeq ($(BOARD),qemu_virt_aarch64)
 
 qemu_cmd := \
 	qemu-system-aarch64 \
-		-machine virt -cpu cortex-a53 -m size=2G \
+		-machine virt,virtualization=on -cpu cortex-a53 -m size=2G \
 		-serial mon:stdio \
 		-nographic \
 		-device loader,file=$(loader),addr=0x70000000,cpu-num=0
@@ -83,3 +100,5 @@ run: $(loader)
 .PHONY: test
 test: test.py $(loader)
 	python3 $< $(qemu_cmd)
+
+endif
