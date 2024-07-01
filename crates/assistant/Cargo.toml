@@ -19,9 +19,10 @@ license = "BSD-2-Clause"
 [dependencies]
 banscii-artist-interface-types = { path = "../artist/interface-types" }
 banscii-assistant-core = { path = "core" }
-banscii-pl011-driver-interface-types = { path = "../pl011-driver/interface-types" }
+embedded-hal-nb = "1.0"
 hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
 sel4-externally-shared = { git = "https://github.com/seL4/rust-sel4", features = ["unstable"] }
+sel4-microkit-driver-adapters = { git = "https://github.com/seL4/rust-sel4" }
 sel4-microkit-message = { git = "https://github.com/seL4/rust-sel4" }
 
 [dependencies.sel4-microkit]
