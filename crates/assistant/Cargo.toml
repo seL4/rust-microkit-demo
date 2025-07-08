@@ -21,9 +21,9 @@ banscii-artist-interface-types = { path = "../artist/interface-types" }
 banscii-assistant-core = { path = "core" }
 embedded-hal-nb = "1.0"
 hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
-sel4-externally-shared = { git = "https://github.com/seL4/rust-sel4", features = ["unstable"] }
+sel4-shared-memory = { git = "https://github.com/seL4/rust-sel4" }
 sel4-microkit-driver-adapters = { git = "https://github.com/seL4/rust-sel4" }
-sel4-microkit-message = { git = "https://github.com/seL4/rust-sel4" }
+sel4-microkit-simple-ipc = { git = "https://github.com/seL4/rust-sel4" }
 
 [dependencies.sel4-microkit]
 git = "https://github.com/seL4/rust-sel4"
