@@ -4,60 +4,35 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 
-FROM trustworthysystems/sel4
-
-WORKDIR /tmp
-
-RUN rm -r *
+FROM debian:bookworm
 
 RUN apt-get update -q && apt-get install -y --no-install-recommends \
-    # for microkit
-    python3-venv \
+    build-essential \
+    curl \
+    git \
+    ca-certificates \
+    # for qemu
+    qemu-utils \
+    qemu-system-arm \
+    qemu-efi-aarch64 \
+    ipxe-qemu \
+    # for bindgen
+    libclang-dev \
+    # for sdf
+    python3-jinja2 \
+    # for test script
+    python3-pexpect \
     # for hacking
-    bash-completion man sudo \
+    bash-completion \
+    man \
+    sudo \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl -sSf https://sh.rustup.rs | \
-        bash -s -- -y --no-modify-path \
-            --default-toolchain nightly-2024-05-01 \
-            --component rust-src \
-            --target x86_64-unknown-linux-musl
+RUN mkdir -p /opt/microkit/sdk \
+    && curl -L https://github.com/seL4/microkit/releases/download/2.0.1/microkit-sdk-2.0.1-linux-x86-64.tar.gz \
+        | tar -xzf - -C /opt/microkit/sdk --strip-components=1
 
-ENV PATH=/root/.cargo/bin:$PATH
-
-RUN set -eux; \
-    url="https://developer.arm.com/-/media/Files/downloads/gnu/12.2.rel1/binrel/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-elf.tar.xz"; \
-    dst=/opt/gcc-aarch64-none-elf; \
-    mkdir -p $dst; \
-    curl -sSfL "$url" | tar -xJ -C $dst --strip-components=1;
-
-ENV PATH=/opt/gcc-aarch64-none-elf/bin:$PATH
-
-ENV MICROKIT_SDK_VERSION=1.3.0
-ENV MICROKIT_SDK=/opt/microkit/microkit-sdk-$MICROKIT_SDK_VERSION
-
-RUN set -eux; \
-    git clone \
-        https://github.com/seL4/microkit.git \
-        --config advice.detachedHead=false; \
-    cd microkit; \
-    git checkout 1ccdfcb3b224533c965fd6508de3dd56657f959c; \
-    git clone \
-        https://github.com/seL4/seL4.git \
-        --config advice.detachedHead=false; \
-    cd seL4; \
-    git checkout 0cdbffec9cf6b4c7c9c57971cbee5a24a70c8fd0;
-
-RUN set -eux; \
-    cd microkit; \
-    python3.9 -m venv pyenv; \
-    ./pyenv/bin/pip install --upgrade pip setuptools wheel; \
-    ./pyenv/bin/pip install -r requirements.txt; \
-    ./pyenv/bin/pip install sel4-deps; \
-    ./pyenv/bin/python3 build_sdk.py --sel4 ./seL4 --skip-docs; \
-    mkdir $(dirname $MICROKIT_SDK); \
-    mv release/microkit-sdk-$MICROKIT_SDK_VERSION $MICROKIT_SDK; \
-    rm -rf $(pwd);
+ENV MICROKIT_SDK=/opt/microkit/sdk
 
 ARG UID
 ARG GID

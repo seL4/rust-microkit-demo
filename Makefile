@@ -37,11 +37,8 @@ $(crate): $(crate).intermediate
 $(crate).intermediate:
 	SEL4_INCLUDE_DIRS=$(abspath $(sel4_include_dirs)) \
 		cargo build \
-			-Z build-std=core,alloc,compiler_builtins \
-			-Z build-std-features=compiler-builtins-mem \
 			--target-dir $(build_dir)/target \
-			--out-dir $(build_dir) \
-			--target aarch64-sel4-microkit-minimal \
+			--artifact-dir $(build_dir) \
 			--release \
 			-p $(1) \
 			$(extra-flags-$(1))

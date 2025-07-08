@@ -19,8 +19,8 @@ license = "BSD-2-Clause"
 [dependencies]
 banscii-artist-interface-types = { path = "interface-types" }
 rsa = { version = "0.8.1", default-features = false, features = ["pem", "sha2"] }
-sel4-externally-shared = { git = "https://github.com/seL4/rust-sel4", features = ["unstable"] }
-sel4-microkit-message = { git = "https://github.com/seL4/rust-sel4" }
+sel4-shared-memory = { git = "https://github.com/seL4/rust-sel4" }
+sel4-microkit-simple-ipc = { git = "https://github.com/seL4/rust-sel4" }
 
 [dependencies.sel4-microkit]
 git = "https://github.com/seL4/rust-sel4"
