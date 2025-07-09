@@ -11,14 +11,16 @@ extern crate alloc;
 
 use alloc::vec;
 
-use sel4_externally_shared::{
-    access::{ReadOnly, ReadWrite},
-    ExternallySharedRef, ExternallySharedRefExt,
-};
+use rsa::signature::SignatureEncoding;
+
 use sel4_microkit::{
     memory_region_symbol, protection_domain, Channel, Handler, Infallible, MessageInfo,
 };
-use sel4_microkit_message::MessageInfoExt as _;
+use sel4_microkit_simple_ipc as simple_ipc;
+use sel4_shared_memory::{
+    access::{ReadOnly, ReadWrite},
+    SharedMemoryRef,
+};
 
 use banscii_artist_interface_types::*;
 
@@ -34,13 +36,13 @@ const REGION_SIZE: usize = 0x4_000;
 #[protection_domain(heap_size = 0x10000)]
 fn init() -> HandlerImpl {
     let region_in = unsafe {
-        ExternallySharedRef::new(memory_region_symbol!(region_in_start: *mut [u8], n = REGION_SIZE))
+        SharedMemoryRef::new_read_only(
+            memory_region_symbol!(region_in_start: *mut [u8], n = REGION_SIZE),
+        )
     };
 
     let region_out = unsafe {
-        ExternallySharedRef::new(
-            memory_region_symbol!(region_out_start: *mut [u8], n = REGION_SIZE),
-        )
+        SharedMemoryRef::new(memory_region_symbol!(region_out_start: *mut [u8], n = REGION_SIZE))
     };
 
     HandlerImpl {
@@ -50,8 +52,8 @@ fn init() -> HandlerImpl {
 }
 
 struct HandlerImpl {
-    region_in: ExternallySharedRef<'static, [u8], ReadOnly>,
-    region_out: ExternallySharedRef<'static, [u8], ReadWrite>,
+    region_in: SharedMemoryRef<'static, [u8], ReadOnly>,
+    region_out: SharedMemoryRef<'static, [u8], ReadWrite>,
 }
 
 impl Handler for HandlerImpl {
@@ -63,7 +65,7 @@ impl Handler for HandlerImpl {
         msg_info: MessageInfo,
     ) -> Result<MessageInfo, Self::Error> {
         Ok(match channel {
-            ASSISTANT => match msg_info.recv_using_postcard::<Request>() {
+            ASSISTANT => match simple_ipc::recv::<Request>(msg_info) {
                 Ok(req) => {
                     let draft_height = req.height;
                     let draft_width = req.width;
@@ -87,8 +89,7 @@ impl Handler for HandlerImpl {
                         .index(masterpiece_start..masterpiece_end)
                         .copy_from_slice(&masterpiece.pixel_data);
 
-                    let signature = cryptographic_secrets::sign(&masterpiece.pixel_data);
-                    let signature = signature.as_ref();
+                    let signature = cryptographic_secrets::sign(&masterpiece.pixel_data).to_bytes();
 
                     let signature_start = masterpiece_end;
                     let signature_size = signature.len();
@@ -97,9 +98,9 @@ impl Handler for HandlerImpl {
                     self.region_out
                         .as_mut_ptr()
                         .index(signature_start..signature_end)
-                        .copy_from_slice(signature);
+                        .copy_from_slice(&signature);
 
-                    MessageInfo::send_using_postcard(Response {
+                    simple_ipc::send(Response {
                         height: masterpiece.height,
                         width: masterpiece.width,
                         masterpiece_start,
@@ -107,9 +108,8 @@ impl Handler for HandlerImpl {
                         signature_start,
                         signature_size,
                     })
-                    .unwrap()
                 }
-                Err(_) => MessageInfo::send_unspecified_error(),
+                Err(_) => simple_ipc::send_unspecified_error(),
             },
             _ => {
                 unreachable!()

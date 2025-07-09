@@ -18,14 +18,10 @@ license = "BSD-2-Clause"
 
 [dependencies]
 banscii-artist-interface-types = { path = "interface-types" }
-rsa = { version = "0.8.1", default-features = false, features = ["pem", "sha2"] }
-sel4-shared-memory = { git = "https://github.com/seL4/rust-sel4" }
+rsa = { version = "0.9.6", default-features = false, features = ["pem", "sha2"] }
+sel4-microkit = { git = "https://github.com/seL4/rust-sel4", features = ["alloc"] }
 sel4-microkit-simple-ipc = { git = "https://github.com/seL4/rust-sel4" }
-
-[dependencies.sel4-microkit]
-git = "https://github.com/seL4/rust-sel4"
-default-features = false
-features = ["alloc"]
+sel4-shared-memory = { git = "https://github.com/seL4/rust-sel4" }
 
 [build-dependencies]
-rsa = "0.8.1"
+rsa = "0.9.6"
