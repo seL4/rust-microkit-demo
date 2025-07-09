@@ -20,7 +20,6 @@ license = "BSD-2-Clause"
 board-qemu_virt_aarch64 = ["sel4-pl011-driver"]
 
 [dependencies]
-sel4-microkit = { git = "https://github.com/seL4/rust-sel4", default-features = false }
+sel4-microkit = { git = "https://github.com/seL4/rust-sel4" }
 sel4-microkit-driver-adapters = { git = "https://github.com/seL4/rust-sel4" }
-sel4-microkit-simple-ipc = { git = "https://github.com/seL4/rust-sel4" }
 sel4-pl011-driver = { git = "https://github.com/seL4/rust-sel4", optional = true }
