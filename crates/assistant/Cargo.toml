@@ -13,7 +13,7 @@
 name = "banscii-assistant"
 version = "0.1.0"
 authors = ["Nick Spinale <nick.spinale@coliasgroup.com>"]
-edition = "2021"
+edition = "2024"
 license = "BSD-2-Clause"
 
 [dependencies]
@@ -22,6 +22,8 @@ banscii-assistant-core = { path = "core" }
 embedded-hal-nb = "1.0"
 hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
 sel4-microkit = { git = "https://github.com/seL4/rust-sel4", features = ["alloc"] }
-sel4-microkit-driver-adapters = { git = "https://github.com/seL4/rust-sel4" }
 sel4-microkit-simple-ipc = { git = "https://github.com/seL4/rust-sel4" }
 sel4-shared-memory = { git = "https://github.com/seL4/rust-sel4" }
+
+[dependencies.sel4-microkit-driver-adapters]
+git = "https://github.com/seL4/rust-sel4"

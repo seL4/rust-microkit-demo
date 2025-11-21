@@ -19,8 +19,7 @@ cp -r $external_demo_dir crates
 find crates -name Cargo.nix -delete
 mv crates/pds/* crates/
 rmdir crates/pds
-mv crates/*.system.template .
-mv crates/generate_system_description.py .
+rm crates/meta.py
 
 subst='s,path = "\(../\)*../../../../\([^"]*\)",git = "https://github.com/seL4/rust-sel4",g' \
 

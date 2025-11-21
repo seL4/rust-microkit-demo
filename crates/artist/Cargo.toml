@@ -13,15 +13,15 @@
 name = "banscii-artist"
 version = "0.1.0"
 authors = ["Nick Spinale <nick.spinale@coliasgroup.com>"]
-edition = "2021"
+edition = "2024"
 license = "BSD-2-Clause"
 
 [dependencies]
 banscii-artist-interface-types = { path = "interface-types" }
-rsa = { version = "0.9.6", default-features = false, features = ["pem", "sha2"] }
+rsa = { version = "0.9.8", default-features = false, features = ["pem", "sha2"] }
 sel4-microkit = { git = "https://github.com/seL4/rust-sel4", features = ["alloc"] }
 sel4-microkit-simple-ipc = { git = "https://github.com/seL4/rust-sel4" }
 sel4-shared-memory = { git = "https://github.com/seL4/rust-sel4" }
 
 [build-dependencies]
-rsa = "0.9.6"
+rsa = "0.9.8"
