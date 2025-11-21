@@ -13,10 +13,10 @@
 name = "banscii-assistant-core"
 version = "0.1.0"
 authors = ["Nick Spinale <nick.spinale@coliasgroup.com>"]
-edition = "2021"
+edition = "2024"
 license = "BSD-2-Clause"
 
 [dependencies]
-ab_glyph = { version = "0.2.22", default-features = false, features = ["libm"] }
-log = "0.4.17"
-num-traits = { version = "0.2.16", default-features = false, features = ["libm"] }
+ab_glyph = { version = "0.2.32", default-features = false, features = ["libm"] }
+log = "0.4.28"
+num-traits = { version = "0.2.19", default-features = false, features = ["libm"] }
