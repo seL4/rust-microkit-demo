@@ -8,7 +8,8 @@
 RUST_TARGET_PATH = { value = "support/targets", relative = true }
 
 [build]
-target = "aarch64-sel4-microkit"
+target = "aarch64-sel4"
+rustflags = ["-Zunstable-options"]
 
 [unstable]
 unstable-options = true

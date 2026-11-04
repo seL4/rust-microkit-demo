@@ -58,12 +58,10 @@ $(eval $(foreach crate_name,$(crate_names),$(call build_crate,$(crate_name))))
 
 ### Loader
 
-system_description_template := banscii.system.template
-
 system_description := $(build_dir)/banscii.system
 
-$(system_description): generate_system_description.py $(system_description_template) | $(build_dir)
-	python3 $< --template $(system_description_template) --board $(BOARD) -o $@
+$(system_description): meta.py | $(build_dir)
+	python3 $< --board $(BOARD) -o $@
 
 loader := $(build_dir)/loader.img
 

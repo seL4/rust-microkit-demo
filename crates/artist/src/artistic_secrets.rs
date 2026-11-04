@@ -42,6 +42,5 @@ impl Masterpiece {
 const PALETTE: &[u8] = b"@%#x+=:-. ";
 
 fn colorize(grey: u8) -> u8 {
-    PALETTE
-        [usize::from(grey) / (usize::from(u8::MAX).next_multiple_of(PALETTE.len()) / PALETTE.len())]
+    PALETTE[usize::from(grey) / usize::from(u8::MAX).div_ceil(PALETTE.len())]
 }
