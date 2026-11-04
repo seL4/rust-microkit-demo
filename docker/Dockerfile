@@ -18,8 +18,8 @@ RUN apt-get update -q && apt-get install -y --no-install-recommends \
     ipxe-qemu \
     # for bindgen
     libclang-dev \
-    # for sdf
-    python3-jinja2 \
+    # for sdfgen
+    python3-pip \
     # for test script
     python3-pexpect \
     # for hacking
@@ -34,9 +34,11 @@ RUN set -eux; \
     mkdir -p $MICROKIT_SDK; \
     cd $MICROKIT_SDK; \
     curl -L \
-        "https://github.com/seL4/microkit/releases/download/2.1.0/microkit-sdk-2.1.0-linux-x86-64.tar.gz" \
+        "https://github.com/seL4/microkit/releases/download/2.4.0/microkit-sdk-2.4.0-linux-x86-64.tar.gz" \
             | tar -xzf - --strip-components=1; \
     chmod -R a+X .; # HACK
+
+RUN pip install --break-system-packages sdfgen==0.34.0
 
 ARG UID
 ARG GID
